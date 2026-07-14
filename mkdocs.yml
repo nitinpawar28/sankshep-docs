@@ -1,0 +1,66 @@
+site_name: Sankshep
+site_description: Token-minimized, relevance-ranked codebase context plus a persistent per-repo memory of facts and decisions, for MCP clients.
+site_url: https://nitinpawar28.github.io/sankshep-docs/
+site_author: Nitin Pawar
+copyright: Copyright &copy; 2026 Nitin Pawar
+
+repo_url: https://github.com/nitinpawar28/sankshep-docs
+repo_name: sankshep-docs
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.top
+    - navigation.sections
+    - content.code.copy
+    - toc.follow
+    - search.suggest
+    - search.highlight
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+nav:
+  - Home: index.md
+  - Install: install.md
+  - Usage & tools: usage.md
+  - Prompt composer: composer.md
+  - How it works: how-it-works.md
+  - Deployment: deployment.md
+  - Benchmarks: benchmarks.md
+  - Architecture: architecture.md
+  - Feedback: feedback.md
