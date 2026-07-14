@@ -1,0 +1,21 @@
+/* Match Material's "teal" primary to the Sankshep brand teal (#276862, the logomark color),
+   so the header/links tone with the logo. White logo stays visible on this teal. */
+[data-md-color-primary="teal"] {
+  --md-primary-fg-color: #276862;
+  --md-primary-fg-color--light: #3a8a80;
+  --md-primary-fg-color--dark: #1f544f;
+}
+[data-md-color-accent="teal"] {
+  --md-accent-fg-color: #2f8378;
+}
+
+/* Landing hero logo sizing. */
+.sankshep-hero {
+  text-align: center;
+  margin: 1.2rem 0 0.4rem;
+}
+.sankshep-hero img {
+  width: 300px;
+  max-width: 70%;
+  height: auto;
+}

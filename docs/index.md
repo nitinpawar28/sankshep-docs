@@ -1,3 +1,5 @@
+<p class="sankshep-hero"><img src="assets/logo-stacked.png" alt="Sankshep"></p>
+
 # Sankshep
 
 *Sankshep* (संक्षेप) is Sanskrit for "the concise essence" — a summary that keeps the substance and

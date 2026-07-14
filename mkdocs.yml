@@ -10,6 +10,8 @@ edit_uri: edit/main/docs/
 
 theme:
   name: material
+  logo: assets/logomark-white.png
+  favicon: assets/favicon.png
   icon:
     repo: fontawesome/brands/github
   palette:
@@ -36,6 +38,9 @@ theme:
     - toc.follow
     - search.suggest
     - search.highlight
+
+extra_css:
+  - assets/brand.css
 
 markdown_extensions:
   - admonition

@@ -1,0 +1,5 @@
+# Treat image binaries as binary (no EOL normalization); SVG is text.
+*.png binary
+*.ico binary
+*.jpg binary
+*.svg text

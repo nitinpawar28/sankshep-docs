@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/assets/logomark.png" alt="Sankshep" width="88"></p>
+
 # sankshep-docs
 
 Public documentation for **Sankshep** — a token-minimized, relevance-ranked codebase-context server
