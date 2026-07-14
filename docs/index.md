@@ -1,4 +1,4 @@
-<p class="sankshep-hero"><img src="assets/logo-stacked.png" alt="Sankshep"></p>
+<p class="sankshep-hero"><img src="assets/logomark.png" alt="Sankshep"></p>
 
 # Sankshep
 

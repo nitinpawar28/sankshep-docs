@@ -9,13 +9,18 @@
   --md-accent-fg-color: #2f8378;
 }
 
-/* Landing hero logo sizing. */
+/* Landing hero: the bracket-dot symbol only (the H1 supplies the wordmark). */
 .sankshep-hero {
   text-align: center;
-  margin: 1.2rem 0 0.4rem;
+  margin: 1rem 0 -0.25rem;
 }
 .sankshep-hero img {
-  width: 300px;
-  max-width: 70%;
-  height: auto;
+  height: 132px;
+  width: auto;
+}
+/* Tighten the H1 to the hero and de-emphasize it (the mark already leads). */
+.md-typeset .sankshep-hero + h1 {
+  text-align: center;
+  margin-top: 0.2rem;
+  font-weight: 700;
 }
