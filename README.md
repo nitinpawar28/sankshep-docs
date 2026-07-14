@@ -23,6 +23,19 @@ pip install "mkdocs-material>=9.5"
 mkdocs serve   # http://127.0.0.1:8000
 ```
 
+## Maintaining these docs (redaction boundary)
+
+This is a **public** repository. Only usage docs + a *curated* architecture slice belong here. When
+updating from the private product repo, the following **never leave the private repo**:
+
+- `docs/plan/**` — internal roadmaps, phase plans, and the risk registers.
+- The session playbook and any unshipped/internal ADRs (only a curated subset of architecture is
+  summarized in [`docs/architecture.md`](docs/architecture.md), not the raw ADRs).
+- Anything implementation-sensitive (internal file layouts, security specifics, unreleased design).
+
+Review the diff before publishing: if a page reveals *how it's built* beyond the curated overview,
+trim it.
+
 ## License
 
 Documentation content: Copyright © 2026 Nitin Pawar. The Sankshep software is governed by its own
