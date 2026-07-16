@@ -7,7 +7,7 @@ mode**; in Claude clients they're available directly.
 
 | Tool | What it does |
 |---|---|
-| **`get_context`** | Token-minimized, ranked context for given paths: strips comments, collapses non-target method bodies, packs under a token budget, and reports the savings. Returns the code as plain, readable text led by a short header stating what was dropped (so nothing is silently truncated), with the savings as structured content. |
+| **`get_context`** | Token-minimized, ranked context for given paths: strips comments, collapses non-target method bodies, packs under a token budget, and reports the savings. Returns everything as one plain, readable text block — a short header stating how much was compressed and what was withheld (so nothing is silently truncated), followed by the code. |
 | **`search_code`** | Semantic search over a local embedding index (bge-small, ONNX, offline) blended with lexical ranking. |
 | **`index_repo`** | Builds/refreshes the semantic index over code **and** `.docx` / `.pdf` documents. |
 | **`summarize_repo`** | Tree-sitter-backed API surface of the repository. |
