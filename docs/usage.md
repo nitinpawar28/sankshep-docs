@@ -13,7 +13,7 @@ mode**; in Claude clients they're available directly.
 | **`summarize_repo`** | Tree-sitter-backed API surface of the repository. |
 | **`remember` / `recall`** | A per-repo, branch-scoped fact store — decisions and conventions that persist across sessions and clients. |
 | **`export_decisions`** | Writes remembered decisions to a `DECISIONS.md`. |
-| **`token_report`** | Cumulative tokens (and dollars) saved by minimization, per tool. |
+| **`token_report`** | Cumulative token accounting per tool: how far minimization compressed the code it delivered, and how much context it searched to find it. |
 
 ## Prompts
 
@@ -42,5 +42,15 @@ everything local. See [How it works](how-it-works.md).
 
 ## Measuring the savings
 
-`token_report` returns cumulative tokens and dollars saved per tool, so "how much did Sankshep save?"
-is a number you read, not guess. Methodology: [Benchmarks](benchmarks.md).
+`token_report` returns cumulative token accounting per tool: **compression** — delivered tokens against
+the original size of the same files, i.e. what minimization actually removed — plus how much context was
+**searched** to find them.
+
+Searched tokens are reported for context and are deliberately **not** a baseline: Sankshep may read a whole
+repository to select a handful of files, and that is not context you would otherwise have sent. Counting it
+as a saving is how a tool ends up claiming it saved more tokens than the model could ever accept. The value
+of *selecting* the right files is a retrieval question, and recall — not a token count — is what answers it.
+
+There is no dollar figure. Sankshep is never told which model you use or what you pay for it, so any total
+would be an assumption dressed as a measurement. Multiply compressed tokens by your own negotiated input
+rate if you want one. Methodology: [Benchmarks](benchmarks.md).
