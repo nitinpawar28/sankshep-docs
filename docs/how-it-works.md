@@ -296,8 +296,10 @@ flowchart LR
     Raw --> Retr --> Min --> Out
 ```
 
-- **Lever 1 — Retrieval (the big win):** semantic search sends the 5 relevant chunks instead of 40 whole files. Most of the savings come from *not sending things at all*.
-- **Lever 2 — Minimization (the second win):** AST transforms strip comments and collapse non-target method bodies to signatures, shrinking what remains.
+- **Lever 1 — Retrieval:** semantic search sends the 5 relevant chunks instead of 40 whole files. This is where most of the practical benefit lives, but Sankshep does **not** report it as tokens saved — sending less is trivially "cheaper", so the number would be unbounded. Whether it picked the *right* 5 is what [recall](benchmarks.md) measures.
+- **Lever 2 — Minimization:** AST transforms strip comments and collapse non-target method bodies to signatures, shrinking what remains. This is what `token_report` reports, as **compression**: delivered tokens against the original size of the same files.
+
+The ~8,400-token figure above is a **naive-send baseline** — the five whole files you'd have pasted yourself. That is a fair comparison. It is *not* the same as the tokens Sankshep *searched*, which on a large repository can run to millions and is never treated as a baseline.
 
 For a .NET + Angular stack specifically: **C#/.NET compresses very well** (verbose namespaces, XML docs, attributes, brace-heavy blocks collapse dramatically), while **Angular templates (HTML/SCSS) rely more on retrieval than on minimization** (there are no "method bodies" to collapse in markup). The combined effect on a typical feature-scoped question is a large reduction in delivered tokens — and, because the model wades through less noise, often a *better* answer too.
 
