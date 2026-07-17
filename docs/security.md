@@ -51,8 +51,10 @@ build from the released binary you trust.
 ## Reporting a vulnerability
 
 Please report suspected security issues **privately** — do **not** open a public issue, which would disclose
-the problem before a fix exists. Use the maintainer contact on the [Feedback](feedback.md) page and mark the
-report as security-sensitive.
+the problem before a fix exists.
 
-> **Maintainer:** set a dedicated private security contact (e.g. a `security@` address or a GitHub private
-> vulnerability-reporting channel) and replace this line, so reporters have an unambiguous private path.
+[**→ Report a vulnerability privately**](https://github.com/nitinpawar28/sankshep-docs/security/advisories/new)
+
+This opens a GitHub private security advisory visible only to the maintainer, and you'll get a response there.
+(Sankshep's product source is a private repository, so vulnerability reports are received through this public
+project's advisory channel.)
