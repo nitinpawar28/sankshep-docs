@@ -65,11 +65,15 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - Quickstart: quickstart.md
   - Install: install.md
   - Usage & tools: usage.md
+  - Tool reference: tool-reference.md
   - Prompt composer: composer.md
   - How it works: how-it-works.md
   - Deployment: deployment.md
+  - Security & privacy: security.md
+  - Troubleshooting: troubleshooting.md
   - Benchmarks: benchmarks.md
   - Architecture: architecture.md
   - Feedback: feedback.md
