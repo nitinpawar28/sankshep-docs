@@ -24,6 +24,28 @@ mode**; in Claude clients they're available directly.
 MCP clients that surface prompts (Claude Code, Claude Desktop) expose `compose_task_prompt` as a
 **slash-command**.
 
+## Supported languages
+
+Sankshep parses code with tree-sitter. Every language below is pinned by a golden test — Sankshep claims
+only what it verifies.
+
+| Language | Comment strip | Body collapse | Notes |
+|---|---|:---:|---|
+| C# | ✓ | ✓ | Also trims unused `using`s. |
+| JavaScript / TypeScript | ✓ | ✓ | `.js .mjs .cjs .jsx .ts .tsx` |
+| Go | ✓ | ✓ | |
+| Java | ✓ | ✓ | |
+| C / C++ | ✓ | ✓ | `.c .h` → C; `.cpp .cc .cxx .hpp .hh .hxx` → C++ |
+| Rust | ✓ | ✓ | |
+| PHP | ✓ | ✓ | |
+| Python | ✓ | — | Indentation blocks have no brace body to elide. |
+| Ruby | ✓ | — | `def…end` blocks have no brace body to elide. |
+
+**Body collapse** replaces a non-target method/function body with a `{ … elided }` marker, so it applies
+only to brace-bodied languages; Python and Ruby get comment-stripping and packing but keep their bodies.
+Files in **any other** language are still retrieved, ranked, and packed under your token budget — just at
+the **text level**, without parse-aware minimization.
+
 ## A typical flow
 
 1. **Index once:** ask the assistant to run `index_repo` on your repo (or a subtree). This embeds code +
