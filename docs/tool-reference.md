@@ -169,7 +169,7 @@ Recalls remembered facts (current branch + global) whose text matches a query, o
 { "count": 1, "facts": [
   { "id": 1, "category": "convention",
     "text": "All money values use decimal, never double.",
-    "source": "src/Calculator.cs", "createdAt": "2026-07-17T07:11:08+05:30" } ] }
+    "source": "src/Calculator.cs", "createdAt": "2026-07-17T01:41:08+00:00" } ] }
 ```
 
 ---
