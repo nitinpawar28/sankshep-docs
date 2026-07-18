@@ -1,7 +1,7 @@
 # Security & privacy
 
 Sankshep is built to run entirely on your machine. This page states exactly what it stores, where, and what —
-if anything — leaves the host.
+if anything — leaves the host, and the controls that back those claims.
 
 ## Data handling: what leaves your machine
 
@@ -12,11 +12,17 @@ The **only** outbound network activity is:
 
 | Activity | When | What is sent |
 |---|---|---|
-| Embedding-model download | First `index_repo`/`search_code`, unless side-loaded | A model-file request to the model host — no repo content. Suppress with `SANKSHEP_MODEL_OFFLINE=1` + `SANKSHEP_MODEL_DIR`. |
+| Embedding-model download | First `index_repo`/`search_code`, unless side-loaded | A checksum-verified request for the public model files — **no repo content**. Suppress with `SANKSHEP_MODEL_OFFLINE=1` + `SANKSHEP_MODEL_DIR`. |
 | Telemetry export | **Only** if you set `SANKSHEP_OTLP_ENDPOINT` or `SANKSHEP_PROMETHEUS` | Counts and a low-cardinality repo tag (the folder name) — **never** file paths, queries, or code. To a collector **you** run. |
 
 There is **no telemetry by default** and no dollar/billing phone-home — Sankshep is never told which model you
-use or what you pay (ADR-0011, ADR-0017).
+use or what you pay (ADR-0011, ADR-0017). No repository code or content ever leaves the machine; the model
+download is a one-time inbound fetch of public files, and it is disableable for air-gapped use.
+
+!!! success "Proven, not just asserted"
+    A [continuous-integration air-gap job](#hardening-verified-posture) runs the server on a **no-egress
+    network** and confirms `summarize_repo`, `index_repo`, and `search_code` all work with outbound traffic
+    physically blocked — and a socket-level test asserts `get_context` opens **zero** outbound connections.
 
 ## Where state lives on disk
 
@@ -37,16 +43,51 @@ transmitted; deleting `.sankshep/` resets a repo's index, memory, and stats.
 ## Network exposure (HTTP mode)
 
 `sankshep --http` binds `http://127.0.0.1:8080` — **loopback only** — by default, a DNS-rebinding defense.
-Accepting non-loopback traffic requires explicitly setting `SANKSHEP_ALLOWED_HOSTS` **and** `ASPNETCORE_URLS`.
-In HTTP mode you can require auth (`SANKSHEP_API_KEY`/`SANKSHEP_API_KEYS` for bearer keys, or the OAuth 2.1
-resource-server mode via `SANKSHEP_OAUTH_*`); health probes stay anonymous. stdio mode has no network surface
-at all.
+stdio mode has no network surface at all.
+
+**The HTTP server fails closed.** If it is bound to a non-loopback interface (a container/Kubernetes
+`ASPNETCORE_URLS=0.0.0.0`) with authentication set to `None`, it **refuses to start** — you must either
+configure authentication or explicitly accept the exposure:
+
+- **API-key auth** (recommended for LAN/cluster): `SANKSHEP_API_KEYS` (bearer keys, compared in constant time).
+- **OAuth 2.1** resource-server mode: `SANKSHEP_OAUTH_*`.
+- **Explicit opt-in** for a trusted, network-isolated deployment: `SANKSHEP_ALLOW_UNAUTHENTICATED=1`.
+
+Health probes stay anonymous. The Helm chart is **secure by default**: it surfaces an `auth` block and will
+not serve unauthenticated on `0.0.0.0` unless you opt in.
+
+## Hardening & verified posture
+
+These controls are enforced in code and covered by tests/CI:
+
+| Area | Control |
+|---|---|
+| **Egress** | No repo content leaves the host; socket-level test + no-egress air-gap CI prove it. |
+| **Telemetry** | Off by default; opt-in only; counts + folder-name tag, never paths/queries/code. |
+| **Path scope** | Relative tool paths are confined to the served `--repo` root — a `../..` escape is rejected. |
+| **SQL** | All SQLite access (facts, vectors, stats) uses bound parameters — no string-built queries. |
+| **Deserialization** | Typed YAML/JSON only; no polymorphic type resolution, no `BinaryFormatter`. |
+| **Untrusted repos** | `.gitignore` matching is ReDoS-safe (no catastrophic backtracking); `.docx`/`.pdf` extraction is size-capped against decompression bombs; directory walks are iterative and symlink-cycle-safe. |
+| **Auth** | Fails closed on unauthenticated non-loopback binds; API keys compared with a constant-time equality. |
+| **Secrets** | API keys / tokens are never written to logs; all logging is paths/errors/counts only. |
+| **Isolation** | Container runs non-root, read-only root filesystem, all Linux capabilities dropped. |
+
+## Independent security review
+
+Sankshep undergoes **adversarial security review** — findings are refuted before they're accepted, and
+confirmed issues are fixed before release. The most recent review (**v1.8.0**) audited ten dimensions
+(path traversal, injection, deserialization, egress, secrets, tool-input abuse, HTTP-tier auth,
+supply-chain, denial-of-service, and command/crypto misuse) and found **no critical or high-severity
+vulnerabilities**. The medium/low hardening items it surfaced — the fail-closed auth bind, ReDoS-safe
+ignore matching, relative-path containment, document size limits, and cycle-safe enumeration above — are
+remediated as of **v1.8.0**.
 
 ## Supply chain
 
-Container images are published to GHCR. Verifying image provenance (signature/SBOM) is recommended before
-running in production; if a signed-image/SBOM workflow is not yet published for your version, pin by digest and
-build from the released binary you trust.
+Container images are published to GHCR via OIDC Trusted Publishing, run as a non-root user with a read-only
+root filesystem and all capabilities dropped, and pin their base image by minor tag. NuGet audit is enforced
+at build time (a flagged advisory fails the build). The embedding-model download is SHA-256 verified and
+fail-closed. For the strictest posture, pin the image by digest and pre-bake or side-load the model.
 
 ## Reporting a vulnerability
 
@@ -57,4 +98,4 @@ the problem before a fix exists.
 
 This opens a GitHub private security advisory visible only to the maintainer, and you'll get a response there.
 (Sankshep's product source is a private repository, so vulnerability reports are received through this public
-project's advisory channel.)
+project's advisory channel.) See also [`SECURITY.md`](https://github.com/nitinpawar28/sankshep-docs/security/policy).
