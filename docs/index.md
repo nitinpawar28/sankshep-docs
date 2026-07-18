@@ -5,7 +5,7 @@
 *Sankshep* (संक्षेप) is Sanskrit for "the concise essence" — a summary that keeps the substance and
 drops the excess.
 
-**Maximum context, minimum tokens — with the tooling to measure it on your own code.**
+**Maximum context, minimum tokens — [with the benchmarks to prove it](benchmarks.md).**
 
 Sankshep is a proprietary [MCP](https://modelcontextprotocol.io) server, written in C#/.NET 9, that
 gives MCP clients — VS Code Copilot Chat, Claude Code, Claude Desktop, Cursor — **token-minimized,
