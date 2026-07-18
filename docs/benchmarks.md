@@ -43,8 +43,11 @@ Per question (recall @ compression):
       question.
     - **A file larger than the budget is delivered whole or not at all.** `get_context` treats each file as
       one atomic chunk; size the budget to clear the largest relevant file (sub-file chunking is on the roadmap).
-    - **Some misses are retrieval, not minimization.** *broker dispatch* sits at 0.50–0.67 at *every* level,
-      Conservative included — those facts are missing regardless of minimization. (Note Balanced *beats*
+    - **A fact that lives only in a doc-comment drops at Balanced.** Balanced strips doc-comments, so a key
+      point documented *only* in a `///` comment (not in the code itself) is recalled at Conservative but not
+      Balanced — this is why *status sync* dips to 0.86 vs Conservative's 1.00.
+    - **Some misses are retrieval, not minimization.** *broker dispatch* sits at 0.50–0.67 even at
+      Conservative and Balanced — those facts are missing regardless of minimization. (Note Balanced *beats*
       Conservative there: eliding noise surfaced a fact the fuller context buried.)
     - The exact percentage is **repo- and query-dependent** — this is one measured run on one codebase, not a
       universal figure.
@@ -84,7 +87,7 @@ judge — regenerate them on any repo:
 
 - **Live, per-tool:** `token_report` returns cumulative compression on your own repo. No dollar figure:
   Sankshep does not know your model or your negotiated rate.
-- **Reproducible:** the eval harness takes a YAML of `{ query, paths, token_budget, key_points }` (facts
+- **Reproducible:** the eval harness takes a YAML of `{ id, query, paths, token_budget, key_points }` (facts
   made **atomic** and verified against the cited code), drives the server over stdio, and emits a
   recall-vs-compression table (plus a composed-vs-naive comparison) you can regenerate.
 

@@ -9,18 +9,23 @@ implementation.)
 Sankshep lives entirely in the **tools** layer of the MCP world. The **client** (Copilot, Claude Code,
 Cursor…) orchestrates; the **model** reasons; Sankshep — a tool server — does the actual work of
 retrieving and minimizing context. Because it speaks the standard protocol, **one build works across
-every MCP client and model**. See [How it works](how-it-works.md) for the full picture.
+every MCP client and model**. It exposes **eight MCP tools plus one prompt primitive** — the full
+surface is documented in the [Tool reference](tool-reference.md). See [How it works](how-it-works.md)
+for the full picture.
 
 ## Local-first, zero-egress by default
 
-The load-bearing product promise: **local-only, zero outbound network by default, no telemetry by
-default.**
+The load-bearing product promise: **local-only, no repo content or telemetry leaves your machine by
+default.** The one outbound exception is a one-time, checksum-verified download of the public embedding
+model on the first `index_repo`/`search_code` (no repo content is sent) — disableable for air-gapped use
+with `SANKSHEP_MODEL_OFFLINE=1` + `SANKSHEP_MODEL_DIR`.
 
 - Embeddings run on-device (ONNX Runtime); vector search is `sqlite-vec` with a pure-C# fallback.
 - Your code is embedded and searched on your own machine; only the small, relevant slice reaches the
   model.
-- Every telemetry / fleet feature is **opt-in**, exports **counts only** (never code or file paths), and
-  targets a **collector you control**. There is a test that asserts zero outbound until you opt in.
+- Every telemetry / fleet feature is **opt-in**, exports **counts plus a low-cardinality repo tag (the
+  folder name) and optional operator-set labels** (never code, file paths, or queries), and targets a
+  **collector you control**. There is a test that asserts zero outbound until you opt in.
 
 ## One binary, two transports
 

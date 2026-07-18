@@ -13,27 +13,35 @@ sankshep --http --repo /srv/repo
 
 Binds `127.0.0.1:8080` by default (loopback), exposing the same MCP tools over Streamable HTTP plus
 `/health/live`, `/health/ready`, and an embedded KPI dashboard at `/dashboard`. Set
-`ASPNETCORE_URLS=http://0.0.0.0:8080` to bind a routable address (then turn on auth — below).
+`ASPNETCORE_URLS=http://0.0.0.0:8080` to bind a routable address — but a non-loopback bind **refuses to
+start** unless you configure authentication (`SANKSHEP_API_KEYS` / `SANKSHEP_OAUTH_*`, see below) or set
+`SANKSHEP_ALLOW_UNAUTHENTICATED=1` for a trusted, network-isolated host.
 
 ## Docker
 
 A multi-arch, non-root image is published to GHCR. Mount your repo **read-only**; state and the model
-live on separate volumes:
+live on separate volumes. The image binds `0.0.0.0` (required in a container), so it **fails closed** at
+startup unless you configure auth or explicitly accept an unauthenticated bind:
 
 ```bash
 docker run --rm -p 8080:8080 \
   -v "$PWD:/repo:ro" \
   -v sankshep-state:/state \
   -v sankshep-models:/models \
+  -e SANKSHEP_API_KEYS=change-me \
   ghcr.io/nitinpawar28/sankshep:latest
 ```
+
+Clients then send `Authorization: Bearer change-me`. For a trusted, network-isolated host only, swap the
+key for `-e SANKSHEP_ALLOW_UNAUTHENTICATED=1` to accept the exposure instead.
 
 ## Windows Service / systemd
 
 Run `--http` as a native service:
 
 - **Windows:** `sankshep service install --repo C:\path\to\repo` (elevated) registers a Windows Service
-  with auto-start and restart-on-crash; logs go to the Event Log.
+  with auto-start and restart-on-crash; logs go to the Event Log. `sankshep service uninstall` (elevated)
+  removes it.
 - **Linux:** install the provided `systemd` unit (`Type=notify`, journald, restart-on-failure).
 
 ## Kubernetes
@@ -41,6 +49,10 @@ Run `--http` as a native service:
 A Helm chart deploys Sankshep as a single-repo-per-release workload with a **git-sync** sidecar keeping
 the repository fresh and read-only, plus model/state PVCs. Native sidecar on K8s ≥ 1.29, with a
 classic-sidecar fallback for older clusters.
+
+The pod binds `0.0.0.0`, so like the container it **fails closed**: set `auth.apiKeys` (recommended —
+source them from a `Secret`) or `auth.allowUnauthenticated=true` for a trusted network. A default
+`helm install` with both unset will not start.
 
 ## Air-gapped / zero-egress
 
@@ -53,13 +65,18 @@ sankshep --http --repo /repo
 ```
 
 The package can also be built from an offline NuGet feed, and the image prebaked with the model, for a
-fully disconnected deployment.
+fully disconnected deployment. On the Helm chart, set `model.offline: true` (which sets
+`SANKSHEP_MODEL_OFFLINE=1`) alongside a pre-populated model PVC.
 
-## Authentication (opt-in)
+## Authentication
 
-The HTTP surface is unauthenticated on loopback by default. For a LAN or enterprise deployment:
+The HTTP surface is unauthenticated on the loopback default. On any **non-loopback bind** it is
+**mandatory**: the server refuses to start unless you configure one of the modes below or set
+`SANKSHEP_ALLOW_UNAUTHENTICATED=1` to deliberately accept an unauthenticated bind on a trusted,
+network-isolated host. For a LAN or enterprise deployment:
 
-- **API key:** `SANKSHEP_API_KEY=<key>` — every request except the health probes needs
+- **API key:** `SANKSHEP_API_KEYS=<key>` (comma-separated for multiple keys; the singular
+  `SANKSHEP_API_KEY` remains a single-key alias) — every request except the health probes needs
   `Authorization: Bearer <key>`.
 - **OAuth 2.1 Resource Server:** `SANKSHEP_OAUTH_AUTHORITY` + `SANKSHEP_OAUTH_AUDIENCE` — Sankshep
   validates tokens from *your* identity provider (audience/issuer/lifetime/signature + scopes) and

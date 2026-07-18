@@ -59,7 +59,7 @@ reasons:
 
 ```mermaid
 flowchart TB
-    U["You: /compose_task_prompt<br/>'add rate limiting to the login endpoint'"]
+    U["You: /compose_task_prompt<br/>task: 'add rate limiting to the login endpoint'<br/>paths: src/Api/Auth, src/Api/Program.cs"]
     subgraph S["Sankshep — deterministic, no LLM"]
         GC["get_context → minimized Login endpoint + middleware"]
         RC["recall → 'use RateLimiting middleware, 429 + Retry-After'"]
@@ -93,21 +93,21 @@ conventions:
 
 - **Task** — your one-line intent, verbatim.
 - **Relevant code** — AST-minimized, ranked snippets from `get_context`, each with its file path.
-- **Project conventions** — remembered decisions from `recall`, branch-scoped, deduped, ranked.
+- **Project conventions** — remembered decisions from `recall`, branch-scoped, deduped, most-recent-first.
 - **Constraints** — guardrails (stay within the shown code, don't add dependencies, follow conventions).
 
 **Worked example — "add rate limiting to the login endpoint":**
 
 ```text
 # Task
-Add rate limiting to the login endpoint.
+add rate limiting to the login endpoint
 
 # Relevant code (minimized)
-// src/Api/Auth/AuthController.cs
+// src/Api/Auth/AuthController.cs:42-58 Login
 [HttpPost("login")]
 public async Task<IResult> Login(LoginRequest req, CancellationToken ct) { /* … issues JWT … */ }
 
-// src/Api/Program.cs
+// src/Api/Program.cs:18-24
 builder.Services.AddRateLimiter(/* … existing FixedWindow limiter … */);
 app.UseRateLimiter();
 
@@ -128,13 +128,21 @@ middleware pattern and the 429/Retry-After contract, with no exploratory roundtr
 
 The composer is **deterministic assembly of retrieved material**. It **does not** generate code, call an
 LLM, or orchestrate a solution — and it takes **no dependency on any model client** (a build-time test
-enforces this, so the boundary can't erode). Given fixed inputs it produces byte-identical output, and
-every line traces back to `get_context` or `recall` — it is auditable.
+enforces this, so the boundary can't erode). Given fixed inputs it produces byte-identical output: the
+*retrieved* material (Relevant code / Project conventions) traces back to `get_context` / `recall`, while
+Task is your input verbatim and Constraints are fixed guardrails — so the whole prompt is deterministic and
+auditable.
 
 ## Using it
 
+!!! note "Arguments"
+    `compose_task_prompt` takes **`task`** (your one-line intent) and **`paths`** — the file or directory
+    paths to draw code context from, comma- or newline-separated. `paths` is **required**; with none
+    supplied there is no code to minimize and the Relevant code section comes back empty. **`tokenBudget`**
+    is optional and defaults to **4000**, split between code and conventions.
+
 - **As Sankshep's MCP prompt:** clients that surface prompts expose `compose_task_prompt` as a
-  slash-command — type the task, get the grounded prompt.
+  slash-command — supply the task and the paths, get the grounded prompt.
 - **Under a Copilot prompt file:** a committed `.github/prompts/*.prompt.md` references Sankshep's
   grounding tools via `tools:`, and Copilot merges the result — the template layer calling the grounding
   layer.

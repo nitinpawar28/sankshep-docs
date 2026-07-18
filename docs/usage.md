@@ -7,10 +7,10 @@ mode**; in Claude clients they're available directly.
 
 | Tool | What it does |
 |---|---|
-| **`get_context`** | Token-minimized, ranked context for given paths: strips comments, collapses non-target method bodies, packs under a token budget, and reports the savings. Returns everything as one plain, readable text block — a short header stating how much was compressed and what was withheld (so nothing is silently truncated), followed by the code. |
-| **`search_code`** | Semantic search over a local embedding index (bge-small, ONNX, offline) blended with lexical ranking. |
+| **`get_context`** | Token-minimized context for given paths, relevance-ranked (semantic + lexical): strips comments, collapses method bodies that aren't relevant to your query, packs under a token budget, and reports the savings. Returns everything as one plain, readable text block — a short header stating how much was compressed and what was withheld (so nothing is silently truncated), followed by the code. |
+| **`search_code`** | Semantic (nearest-neighbor) search over a local embedding index (bge-small, ONNX, offline). |
 | **`index_repo`** | Builds/refreshes the semantic index over code **and** `.docx` / `.pdf` documents. |
-| **`summarize_repo`** | Tree-sitter-backed API surface of the repository. |
+| **`summarize_repo`** | Tree-sitter-backed API surface of a repository's C# (`.cs`) files. |
 | **`remember` / `recall`** | A per-repo, branch-scoped fact store — decisions and conventions that persist across sessions and clients. |
 | **`export_decisions`** | Writes remembered decisions to a `DECISIONS.md`. |
 | **`token_report`** | Cumulative token accounting per tool: how far minimization compressed the code it delivered, and how much context it searched to find it. |
@@ -31,7 +31,7 @@ only what it verifies.
 
 | Language | Comment strip | Body collapse | Notes |
 |---|---|:---:|---|
-| C# | ✓ | ✓ | Also trims unused `using`s. |
+| C# | ✓ | ✓ | Trims unused `using`s at `level=Aggressive`. |
 | JavaScript / TypeScript | ✓ | ✓ | `.js .mjs .cjs .jsx .ts .tsx` |
 | Go | ✓ | ✓ | |
 | Java | ✓ | ✓ | |
@@ -41,10 +41,17 @@ only what it verifies.
 | Python | ✓ | — | Indentation blocks have no brace body to elide. |
 | Ruby | ✓ | — | `def…end` blocks have no brace body to elide. |
 
-**Body collapse** replaces a non-target method/function body with a `{ … elided }` marker, so it applies
-only to brace-bodied languages; Python and Ruby get comment-stripping and packing but keep their bodies.
-Files in **any other** language are still retrieved, ranked, and packed under your token budget — just at
-the **text level**, without parse-aware minimization.
+**Body collapse** replaces a method/function body that isn't relevant to your query with a
+`{ /* … body elided (N lines) */ }` marker, so it applies only to brace-bodied languages; Python and Ruby
+get comment-stripping and packing but keep their bodies. Files in **any other** language are still
+retrieved, ranked, and packed under your token budget — just at the **text level**, without parse-aware
+minimization.
+
+!!! note "Minimization levels"
+    `get_context` takes a `level` argument (see the [tool reference](tool-reference.md#get_context)).
+    **Conservative** collapses nothing; **Balanced** (the default) keeps the method bodies relevant to your
+    query and collapses the rest; **Aggressive** collapses every non-relevant body plus expression-bodied
+    (`=>`) members and trims unused `using`s.
 
 ## A typical flow
 

@@ -9,8 +9,7 @@ dotnet tool install -g sankshep
 sankshep --version
 ```
 
-First run downloads the local embedding model (~127 MB, once). Fully offline afterwards. For containers,
-Windows Service, systemd, air-gap, see [Deployment](deployment.md).
+For containers, Windows Service, systemd, air-gap, see [Deployment](deployment.md).
 
 ## 2. Connect your MCP client
 
@@ -38,6 +37,9 @@ the `compose_task_prompt` prompt. If not, see [Troubleshooting](troubleshooting.
 ```text
 index_repo   path: "."          → index_repo: indexed <repo>; the index now holds N chunk(s).
 ```
+
+The first `index_repo` downloads the local embedding model (~127 MB, once) — expect a short one-time
+delay; fully offline afterwards.
 
 A path that matches nothing, or holds no supported source, returns an **error** — not a silent success.
 

@@ -17,9 +17,9 @@ bodies, packs under a token budget, and leads with a header stating what was com
 
 | Argument | Type | Default | Notes |
 |---|---|---|---|
-| `query` | string | — | What you're looking for; ranks the files under `paths`. |
+| `query` | string | — | What you're looking for; ranks the files under `paths` (blended semantic + lexical relevance). Required. |
 | `paths` | string[] | — | Files or directories (repo-relative or absolute). Required. |
-| `tokenBudget` | integer | — | Max tokens of context to return. |
+| `tokenBudget` | integer | — | Max tokens of context to return. Required. |
 | `level` | string | `Balanced` | `Conservative` · `Balanced` · `Aggressive`. |
 
 ```jsonc
@@ -47,11 +47,15 @@ Read the header as: `original -> delivered (% smaller)` is the compression of th
 `tokenBudget` or narrow `paths` if the answer feels incomplete. On very small inputs the locator header can
 make a file *larger*; that is reported honestly, not hidden.
 
+An **empty** delivery — nothing matched `paths`, or `tokenBudget` was too small to admit even one chunk —
+returns **`isError: true`** with a header explaining why, never a silent 0-token "success".
+
 ---
 
 ## `search_code`
 
-Semantic search over the local embedding index, blended with lexical ranking. Run `index_repo` first.
+Semantic (vector KNN) search over the local embedding index — pure nearest-neighbour similarity, no lexical
+blend. Run `index_repo` first.
 
 | Argument | Type | Default | Notes |
 |---|---|---|---|
@@ -146,8 +150,11 @@ Persists a fact (decision, convention, or note) to this repo's memory, tagged wi
 ```
 ```jsonc
 // response — content[0].text
-{ "id": 1, "category": "convention" }
+{ "id": 1, "category": "convention", "branch": "main" }
 ```
+
+The current git `branch` is echoed back so you can see where the fact was tagged; off a git repo it is
+recorded (and returned) as `"global"`.
 
 ---
 
@@ -169,7 +176,7 @@ Recalls remembered facts (current branch + global) whose text matches a query, o
 { "count": 1, "facts": [
   { "id": 1, "category": "convention",
     "text": "All money values use decimal, never double.",
-    "source": "src/Calculator.cs", "createdAt": "2026-07-17T01:41:08+00:00" } ] }
+    "source": "src/Calculator.cs", "branch": "main", "createdAt": "2026-07-17T01:41:08+00:00" } ] }
 ```
 
 ---
@@ -260,3 +267,16 @@ public sealed class Calculator { ...minimized... }
 ```
 
 See [Prompt composer](composer.md) for the full anatomy and the prompt-not-answer boundary.
+
+---
+
+## Resources
+
+Alongside its tools, Sankshep exposes one MCP **resource** — data a client pulls in-context by URI rather
+than invoking with arguments.
+
+### `sankshep://stats`
+
+Cumulative token accounting for this repo as `application/json`: how far minimization compressed the
+delivered code, how much context was searched to find it, and a per-tool breakdown. It is the same
+`StatsSnapshot` the dashboard feed serves, and is registered on both stdio and HTTP transports.

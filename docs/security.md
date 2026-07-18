@@ -13,11 +13,16 @@ The **only** outbound network activity is:
 | Activity | When | What is sent |
 |---|---|---|
 | Embedding-model download | First `index_repo`/`search_code`, unless side-loaded | A checksum-verified request for the public model files — **no repo content**. Suppress with `SANKSHEP_MODEL_OFFLINE=1` + `SANKSHEP_MODEL_DIR`. |
-| Telemetry export | **Only** if you set `SANKSHEP_OTLP_ENDPOINT` or `SANKSHEP_PROMETHEUS` | Counts and a low-cardinality repo tag (the folder name) — **never** file paths, queries, or code. To a collector **you** run. |
+| Telemetry export | **Only** if you set `SANKSHEP_OTLP_ENDPOINT` | Counts and a low-cardinality repo tag (the folder name) — **never** file paths, queries, or code. To a collector **you** run. |
 
 There is **no telemetry by default** and no dollar/billing phone-home — Sankshep is never told which model you
 use or what you pay (ADR-0011, ADR-0017). No repository code or content ever leaves the machine; the model
 download is a one-time inbound fetch of public files, and it is disableable for air-gapped use.
+
+!!! note "`SANKSHEP_PROMETHEUS=1` is a pull endpoint, not outbound"
+    In HTTP mode it exposes a local `/metrics` endpoint that **your** Prometheus scrapes — the server never
+    initiates that connection, so it is inbound and not listed above. Only `SANKSHEP_OTLP_ENDPOINT` (OTLP
+    push) sends telemetry outbound.
 
 !!! success "Proven, not just asserted"
     A [continuous-integration air-gap job](#hardening-verified-posture) runs the server on a **no-egress
@@ -84,10 +89,14 @@ remediated as of **v1.8.0**.
 
 ## Supply chain
 
-Container images are published to GHCR via OIDC Trusted Publishing, run as a non-root user with a read-only
-root filesystem and all capabilities dropped, and pin their base image by minor tag. NuGet audit is enforced
-at build time (a flagged advisory fails the build). The embedding-model download is SHA-256 verified and
-fail-closed. For the strictest posture, pin the image by digest and pre-bake or side-load the model.
+The NuGet package is published with **OIDC Trusted Publishing** — GitHub's OIDC token is exchanged for a
+short-lived NuGet key at release time, so **no long-lived API key is stored** anywhere. NuGet audit is
+enforced at build time: the real vulnerability codes (**NU1901–NU1904**) are treated as build **errors**, so
+a flagged advisory fails the build — that's how the OpenTelemetry 1.10.0 CVE was caught.
+
+Container images are published to GHCR, run as a non-root user with a read-only root filesystem and all Linux
+capabilities dropped, and pin their base image by minor tag. The embedding-model download is SHA-256 verified
+and fail-closed. For the strictest posture, pin the image by digest and pre-bake or side-load the model.
 
 ## Reporting a vulnerability
 

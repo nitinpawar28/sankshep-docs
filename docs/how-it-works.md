@@ -135,7 +135,7 @@ The Model Context Protocol (MCP) is a standard, JSON-RPC-based way for clients t
 
 > **The MCP server never sends instructions to the model.** The MCP server only provides tool definitions — but never includes actual pre-instructions for the LLM. This is intentional: the system prompt must come from the client who is orchestrating the conversation.
 
-So how does the model "know" to call Sankshep? Through the tool *descriptions*. When agents connect to an MCP server, the tools metadata — an array with names, parameter schemas, and descriptions — becomes vectorized inside the LLM, producing an internal tool embedding for each tool. Later, the LLM uses this semantic signature to infer which tool fits the request. This is why high-quality tool names, descriptions, and parameter descriptions matter so much when building MCP tools.
+So how does the model "know" to call Sankshep? Through the tool *descriptions*. When agents connect to an MCP server, the tools metadata — an array with names, parameter schemas, and descriptions — is fetched via `tools/list` and placed directly into the model's context as tokens, alongside your prompt. There is no separate per-tool embedding step; the model predicts which tool fits the request by attending to those in-context descriptions. This is why high-quality tool names, descriptions, and parameter descriptions matter so much when building MCP tools.
 
 And to be precise about "deciding": the LLM isn't deciding in the human sense — it's predicting tool-call tokens when they appear appropriate, given the prompt, chat history, tool descriptions, and system guidelines.
 
@@ -190,7 +190,7 @@ flowchart TB
     end
 
     Vec[("sqlite-vec index +<br/>fact store — local")]:::store
-    Repo["Your working tree<br/>(.cs · .ts · .html · .pdf · .docx)"]:::ext
+    Repo["Your working tree<br/>(.cs · .ts · .py · … · .pdf · .docx)"]:::ext
     ONNX["Local ONNX embeddings<br/>(no network)"]:::ext
 
     IDE ==>|MCP| Tools
@@ -227,9 +227,9 @@ sequenceDiagram
     Mdl-->>Cop: call get_context(query="login flow Angular form to JWT", budget=6000)
     Cop->>San: tools/call get_context {…}
     San->>Idx: embed query → KNN search → rank chunks
-    Note over San,Idx: Finds: LoginComponent.ts, auth.service.ts,<br/>AuthController.cs, JwtTokenService.cs,<br/>login.component.html
+    Note over San,Idx: Finds: LoginComponent.ts, auth.service.ts,<br/>AuthController.cs, JwtTokenService.cs
     San->>San: AST-minimize context chunks<br/>(strip comments, collapse non-target bodies)
-    San-->>Cop: 5 ranked chunks (~1,900 tokens)<br/>+ SavingsReport (raw 8,400 → 1,900)
+    San-->>Cop: 4 ranked chunks (~1,900 tokens)<br/>+ header (8,400 original → 1,900 delivered)
     Cop->>Mdl: prompt + those chunks
     Mdl-->>Cop: explains the full flow, citing the real symbols
     Cop-->>Dev: grounded answer + (hover shows which model ran)
@@ -237,7 +237,7 @@ sequenceDiagram
 
 ### What Sankshep actually returned (illustrative)
 
-Instead of dumping five whole files (~8,400 tokens of raw code, comments, and boilerplate), Sankshep sent a compact, ranked bundle. For the Angular side it kept the relevant method signatures and the specific call that hits the API; for the .NET side it kept the controller action and the token-signing method body (the *target* of the question), while collapsing unrelated methods to signatures:
+Instead of dumping four whole files (~8,400 tokens of raw code, comments, and boilerplate), Sankshep sent a compact, ranked bundle. For the Angular side it kept the relevant method signatures and the specific call that hits the API; for the .NET side it kept the controller action and the token-signing method body (the *target* of the question), while collapsing unrelated methods to signatures:
 
 ```csharp
 // AuthController.cs  (relevance: 0.94) — target, kept in full
@@ -245,7 +245,7 @@ Instead of dumping five whole files (~8,400 tokens of raw code, comments, and bo
 public async Task<IActionResult> Login(LoginRequest req) {
     var user = await _users.ValidateAsync(req.Email, req.Password);
     if (user is null) return Unauthorized();
-    var token = _jwt.Issue(user);          // ← see JwtTokenService
+    var token = _jwt.Issue(user);
     return Ok(new { token });
 }
 ```
@@ -260,7 +260,6 @@ login(email: string, password: string) {
 // JwtTokenService.cs  (relevance: 0.89) — target body kept
 public string Issue(User user) {
     var claims = new[] { new Claim(ClaimTypes.NameIdentifier, user.Id) /* … */ };
-    // signs with RS256 using the configured signing key
     return new JwtSecurityTokenHandler().WriteToken(/* … */);
 }
 // Other 11 methods in this class collapsed to signatures — not relevant to login
@@ -296,12 +295,12 @@ flowchart LR
     Raw --> Retr --> Min --> Out
 ```
 
-- **Lever 1 — Retrieval:** semantic search sends the 5 relevant chunks instead of 40 whole files. This is where most of the practical benefit lives, but Sankshep does **not** report it as tokens saved — sending less is trivially "cheaper", so the number would be unbounded. Whether it picked the *right* 5 is what [recall](benchmarks.md) measures.
+- **Lever 1 — Retrieval:** semantic search sends the 4 relevant chunks instead of 40 whole files. This is where most of the practical benefit lives, but Sankshep does **not** report it as tokens saved — sending less is trivially "cheaper", so the number would be unbounded. Whether it picked the *right* 5 is what [recall](benchmarks.md) measures.
 - **Lever 2 — Minimization:** AST transforms strip comments and collapse non-target method bodies to signatures, shrinking what remains. This is what `token_report` reports, as **compression**: delivered tokens against the original size of the same files.
 
-The ~8,400-token figure above is a **naive-send baseline** — the five whole files you'd have pasted yourself. That is a fair comparison. It is *not* the same as the tokens Sankshep *searched*, which on a large repository can run to millions and is never treated as a baseline.
+The ~8,400-token figure above is a **naive-send baseline** — the four whole files you'd have pasted yourself. That is a fair comparison. It is *not* the same as the tokens Sankshep *searched*, which on a large repository can run to millions and is never treated as a baseline.
 
-For a .NET + Angular stack specifically: **C#/.NET compresses very well** (verbose namespaces, XML docs, attributes, brace-heavy blocks collapse dramatically), while **Angular templates (HTML/SCSS) rely more on retrieval than on minimization** (there are no "method bodies" to collapse in markup). The combined effect on a typical feature-scoped question is a large reduction in delivered tokens — and, because the model wades through less noise, often a *better* answer too.
+For a .NET + Angular stack specifically: **C#/.NET compresses very well** (verbose namespaces, XML docs, attributes, brace-heavy blocks collapse dramatically), and the **TypeScript side of an Angular app** (`.ts` components and services) is indexed and minimized too. Angular HTML templates and SCSS are **not currently indexed or minimized** — they're skipped end to end, so an Angular question is answered from the `.ts` side (markup/style support is future work). The combined effect on a typical feature-scoped question is a large reduction in delivered tokens — and, because the model wades through less noise, often a *better* answer too.
 
 > **Important:** the exact percentage is repo- and query-dependent, and the honest way to state it is with the eval harness's measured numbers on a named repository, not a marketing figure. The tool is designed so that "how much did we save, and did quality hold?" is a number you *measure and publish*, not one you guess.
 

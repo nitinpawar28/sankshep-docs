@@ -7,11 +7,13 @@ containers (see [Deployment](deployment.md)).
 ## Install the tool
 
 The RID-specific package bundles the native assets (tree-sitter, sqlite-vec, ONNX Runtime) for your
-platform:
+platform. Supported platforms are **win-x64**, **linux-x64**, **linux-arm64**, **osx-x64**, and
+**osx-arm64**; `win-arm64` is not currently packaged (no sqlite-vec native for it), and unsupported
+platforms fail cleanly at install rather than at runtime:
 
 ```bash
 dotnet tool install -g sankshep
-sankshep serve --repo .
+sankshep --version                   # verify the install (serve is launched by your MCP client)
 ```
 
 Requires the [.NET SDK/runtime 9](https://dotnet.microsoft.com/download/dotnet/9.0). Update with
@@ -23,7 +25,7 @@ Requires the [.NET SDK/runtime 9](https://dotnet.microsoft.com/download/dotnet/9
 
     ```bash
     dnx sankshep serve --repo .          # latest
-    dnx sankshep@1.4.0 serve --repo .    # pinned version
+    dnx sankshep@1.8.0 serve --repo .    # pinned version
     ```
 
 ## Point your MCP client at it
@@ -95,12 +97,16 @@ Then configure the client with a URL transport (and a bearer token if you enable
 }
 ```
 
-Omit `headers` if the server runs in `None` auth mode on loopback. To accept non-loopback hosts you must set
-**both** `ASPNETCORE_URLS` and `SANKSHEP_ALLOWED_HOSTS` — see [Security & privacy](security.md).
+Omit `headers` if the server runs in `None` auth mode on loopback. A non-loopback bind (`ASPNETCORE_URLS` set
+to a non-loopback address) with `None` auth **refuses to start** — you must configure auth (`SANKSHEP_API_KEYS`
+or `SANKSHEP_OAUTH_*`) or, on a trusted network-isolated host only, set `SANKSHEP_ALLOW_UNAUTHENTICATED=1`.
+`SANKSHEP_ALLOWED_HOSTS` is an additional Host-header hardening option, not the start gate — see
+[Security & privacy](security.md).
 
 ## Environment variables
 
-All optional. Defaults keep Sankshep local-only with no telemetry.
+All optional. Defaults keep Sankshep local-only with no telemetry. See
+[Environment variables](environment.md) for the full reference with grouping and notes.
 
 | Variable | Purpose | Default |
 |---|---|---|
@@ -108,12 +114,13 @@ All optional. Defaults keep Sankshep local-only with no telemetry.
 | `SANKSHEP_MODEL_DIR` | Embedding-model cache location | per-user default |
 | `SANKSHEP_MODEL_OFFLINE` | `1` = never attempt the model download (air-gap; side-load first) | off |
 | `SANKSHEP_WATCH` | `1` = watch the working tree and keep the index fresh automatically | off |
-| `SANKSHEP_DISABLE_VEC` | `1` = disable the sqlite-vec native path (pure-C# vector fallback) | off |
+| `SANKSHEP_DISABLE_VEC0` | `1` = disable the sqlite-vec native path (pure-C# vector fallback) | off |
 | `SANKSHEP_OTLP_ENDPOINT` | Enable OTLP metric export to this collector (opt-in) | unset (no export) |
 | `SANKSHEP_PROMETHEUS` | `1` = expose the `/metrics` scrape endpoint (opt-in) | off |
 | `SANKSHEP_FLEET_TEAM` / `SANKSHEP_FLEET_INSTANCE` | Optional low-cardinality labels on exported metrics | unset |
 | `ASPNETCORE_URLS` | HTTP bind address(es) | `http://127.0.0.1:8080` |
-| `SANKSHEP_ALLOWED_HOSTS` | Host-header allowlist required to accept non-loopback traffic | loopback only |
+| `SANKSHEP_ALLOWED_HOSTS` | Host-header allowlist (DNS-rebinding hardening for non-loopback binds; applied only when set) | unset (Host header unrestricted; loopback protection is the default bind) |
+| `SANKSHEP_ALLOW_UNAUTHENTICATED` | `1` = explicitly permit an unauthenticated non-loopback bind (trusted, network-isolated hosts only) | off — server fails closed on a non-loopback bind with no auth |
 | `SANKSHEP_API_KEY` / `SANKSHEP_API_KEYS` | Bearer key(s) for ApiKey auth mode (HTTP) | unset (no key auth) |
 | `SANKSHEP_OAUTH_AUTHORITY` / `_AUDIENCE` / `_RESOURCE` / `_SCOPES` | OAuth 2.1 resource-server validation (HTTP) | unset (OAuth off) |
 
@@ -121,7 +128,7 @@ All optional. Defaults keep Sankshep local-only with no telemetry.
 
 The first semantic search or index builds a local embedding index and, once, downloads the embedding
 model (~127 MB) to `~/.sankshep/models`. After that, everything is offline. In air-gapped environments
-you can side-load the model and set `SANKSHEP_MODEL_OFFLINE=1` — see [Deployment](deployment.md).
+you can side-load the model and set `SANKSHEP_MODEL_OFFLINE=1` — see [Deployment](deployment.md#air-gapped-zero-egress).
 
 Next: the [tool reference](tool-reference.md), a [5-minute quickstart](quickstart.md), and the
 [prompt composer](composer.md).

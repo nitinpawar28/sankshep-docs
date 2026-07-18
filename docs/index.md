@@ -21,15 +21,15 @@ answer. Sankshep sends the model the *small, relevant slice* instead: it retriev
 matter and AST-minimizes them (strips comments, collapses non-target method bodies), then reports how
 many tokens it saved.
 
-The full tool surface — nine primitives, each documented with real captured I/O in the
-[tool reference](tool-reference.md):
+The full surface — nine MCP primitives (eight tools plus one prompt), each documented with real
+captured I/O in the [tool reference](tool-reference.md):
 
 <div class="grid cards" markdown>
 
 - :material-scissors-cutting: **Minimize** — ranked, comment-stripped, body-collapsed context under a
   token budget ([`get_context`](tool-reference.md#get_context)).
-- :material-magnify: **Search** — semantic + lexical search over a local embedding index you build with
-  `index_repo` ([`search_code`](tool-reference.md#search_code)).
+- :material-magnify: **Search** — semantic (nearest-neighbor) search over a local embedding index you
+  build with `index_repo` ([`search_code`](tool-reference.md#search_code)).
 - :material-file-tree: **Map** — namespaces, public types, and method signatures for a directory
   ([`summarize_repo`](tool-reference.md#summarize_repo)).
 - :material-brain: **Remember** — a per-repo, branch-scoped fact store that survives across sessions and
@@ -45,7 +45,7 @@ The full tool surface — nine primitives, each documented with real captured I/
 
 ## Get started
 
-- **[Quickstart](quickstart.md)** — install → connect → first grounded answer → see the savings, in ~5 minutes.
+- **[Quickstart](quickstart.md)** — install → connect → index → first grounded answer → see the savings, in ~5 minutes.
 - **[Install](install.md)** — `dotnet tool install -g sankshep`, client configs, HTTP, and environment variables.
 - **[Tool reference](tool-reference.md)** — every tool's arguments and a real captured request/response.
 - **[How it works](how-it-works.md)** — the three-layer model, MCP, and where Sankshep fits.
