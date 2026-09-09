@@ -35,13 +35,21 @@ out of `--repo` via `..` is rejected as unmatched rather than read (`get_context
 
 ## `index_repo` says it indexed chunks, but `search_code` returns nothing {#index-built-but-search-empty}
 
-In rare cases `index_repo` reports a non-zero chunk count while a following `search_code` returns
-`{count:0,results:[]}`. Recover with:
+**Before v2.0.0 this was not rare and re-indexing did not fix it.** Indexing a *subdirectory* keyed
+every chunk relative to that directory rather than to the served repo root, so nothing could resolve the
+keys afterwards — and `index_repo --force` rewrote exactly the same unusable keys. The only thing that
+worked was indexing from the repo root. That is fixed: keys are always relative to `--repo`, and an index
+written by an older build is pruned and rebuilt on first use.
 
-- Re-run `index_repo` with `force: true`.
-- Delete the repo's `.sankshep/index.db` (and `-wal`/`-shm` siblings) and re-index from scratch.
+On v2.0.0 and later, if `index_repo` reports chunks and `search_code` returns nothing:
+
+- **Re-run `index_repo`.** Only `index_repo` discovers new files — the watcher and verify-on-read refresh
+  files that are *already* indexed, so a file added since the last index is invisible to search until you
+  run it again. This is the common cause.
 - Confirm the path you indexed actually contains supported source — any language on the
   [Supported languages](usage.md#supported-languages) table, plus `.docx`/`.pdf` documents.
+- Delete the repo's `.sankshep/index.db` (and its `-wal`/`-shm` siblings) and re-index. The index is
+  derived data, so this is always safe; it is also what an older index does for itself on first use.
 
 `get_context` and `summarize_repo` are unaffected — they read files directly and never depend on the index.
 

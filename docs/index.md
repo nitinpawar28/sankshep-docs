@@ -7,7 +7,7 @@ drops the excess.
 
 **Maximum context, minimum tokens — [with the benchmarks to prove it](benchmarks.md).**
 
-Sankshep is a proprietary [MCP](https://modelcontextprotocol.io) server, written in C#/.NET 9, that
+Sankshep is a proprietary [MCP](https://modelcontextprotocol.io) server, written in C#/.NET 10, that
 gives MCP clients — VS Code Copilot Chat, Claude Code, Claude Desktop, Cursor — **token-minimized,
 relevance-ranked codebase context**, plus a **persistent, per-repo memory** of facts and decisions.
 
@@ -21,7 +21,7 @@ answer. Sankshep sends the model the *small, relevant slice* instead: it retriev
 matter and AST-minimizes them (strips comments, collapses non-target method bodies), then reports how
 many tokens it saved.
 
-The full surface — nine MCP primitives (eight tools plus one prompt), each documented with real
+The full surface — ten MCP primitives (eight tools, one prompt and one resource), each documented with real
 captured I/O in the [tool reference](tool-reference.md):
 
 <div class="grid cards" markdown>

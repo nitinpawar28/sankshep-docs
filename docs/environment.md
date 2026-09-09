@@ -20,7 +20,9 @@ ignores them.
 |---|---|---|
 | `ASPNETCORE_URLS` | Bind address(es). A **non-loopback** value (e.g. `http://0.0.0.0:8080`) triggers the fail-closed auth gate below. | `http://127.0.0.1:8080` (loopback) |
 | `SANKSHEP_API_KEYS` | Comma-separated bearer keys (API-key auth). Clients send `Authorization: Bearer <key>`; keys are compared in constant time. `SANKSHEP_API_KEY` is a single-key alias. | unset (auth mode `None`) |
-| `SANKSHEP_OAUTH_AUTHORITY` · `_AUDIENCE` · `_RESOURCE` · `_SCOPES` | OAuth 2.1 resource-server mode (validate bearer tokens from your IdP). | unset |
+| `SANKSHEP_OAUTH_AUTHORITY` · `_AUDIENCE` | OAuth 2.1 resource-server mode (validate bearer tokens from your IdP). **Both** are required to select it; setting one alone does nothing. | unset |
+| `SANKSHEP_OAUTH_SCOPES` | Scopes a caller's token must carry. **Defaults to `mcp:tools`** — leaving it unset is *not* the same as requiring nothing: a token without that scope is still rejected. | `mcp:tools` |
+| `SANKSHEP_OAUTH_RESOURCE` | The protected-resource URI. **Required unless `_AUDIENCE` is an absolute URI** — otherwise the server throws at startup rather than serving unprotected. | derived from `_AUDIENCE` |
 | `SANKSHEP_ALLOW_UNAUTHENTICATED` | `1` explicitly permits an **unauthenticated non-loopback bind**. Without it — and without auth configured — a non-loopback bind **refuses to start**. Use only on a trusted, network-isolated deployment. | off (server fails closed) |
 | `SANKSHEP_ALLOWED_HOSTS` | Comma-separated `Host`-header allow-list (DNS-rebinding hardening) for non-loopback binds. | unset (Host unrestricted; the loopback default is the protection) |
 

@@ -9,7 +9,7 @@ implementation.)
 Sankshep lives entirely in the **tools** layer of the MCP world. The **client** (Copilot, Claude Code,
 Cursor…) orchestrates; the **model** reasons; Sankshep — a tool server — does the actual work of
 retrieving and minimizing context. Because it speaks the standard protocol, **one build works across
-every MCP client and model**. It exposes **eight MCP tools plus one prompt primitive** — the full
+every MCP client and model**. It exposes **eight MCP tools, one prompt and one resource** — the full
 surface is documented in the [Tool reference](tool-reference.md). See [How it works](how-it-works.md)
 for the full picture.
 
@@ -67,8 +67,11 @@ protocol adapter is confined to one project.
 - **local ONNX embeddings over a cloud API** — offline, private, no per-query network or cost.
 - **`sqlite-vec` over a vector database** — a single embedded file, no service to run, with a pure-C#
   brute-force fallback.
-- **working-tree-as-truth freshness** — the index tracks your actual working tree (watcher +
-  verify-on-read + branch-aware re-index), so answers reflect what's on disk now.
+- **working-tree-as-truth freshness** — the index tracks your working tree file by file: an optional
+  watcher, plus verify-on-read, which re-indexes changed files and prunes deleted ones on every search.
+  There is **no branch-aware re-index** — nothing reads git HEAD. Re-run `index_repo` after a branch
+  switch or anything else that adds files, because **only `index_repo` discovers new ones**; the watcher
+  and verify-on-read refresh files that are already indexed.
 - **evals drive the real server as a subprocess** — the benchmark harness treats the shipped binary as a
   black box over MCP, so what's measured is what ships.
 

@@ -157,7 +157,7 @@ sequenceDiagram
     S-->>Client: tool definitions (get_context, search_code, …)
     U->>Client: "How does auth work in this repo?"
     Client->>Model: prompt + conversation + tool definitions
-    Model-->>Client: "Call get_context(query, budget)"
+    Model-->>Client: "Call get_context(query, tokenBudget, paths)"
     Client->>S: tools/call get_context {query, tokenBudget}
     S-->>Client: minimized, ranked context + savings report
     Client->>Model: prompt + tool results
@@ -224,12 +224,12 @@ sequenceDiagram
 
     Dev->>Cop: "How does login work, Angular form → API JWT?"
     Cop->>Mdl: prompt + Sankshep tool definitions
-    Mdl-->>Cop: call get_context(query="login flow Angular form to JWT", budget=6000)
+    Mdl-->>Cop: call get_context(query="login flow Angular form to JWT", tokenBudget=6000,<br/>paths=["src/api", "src/app/auth"])
     Cop->>San: tools/call get_context {…}
-    San->>Idx: embed query → KNN search → rank chunks
+    San->>Idx: rank the files under paths (lexical, plus semantic when an index exists)
     Note over San,Idx: Finds: LoginComponent.ts, auth.service.ts,<br/>AuthController.cs, JwtTokenService.cs
     San->>San: AST-minimize context chunks<br/>(strip comments, collapse non-target bodies)
-    San-->>Cop: 4 ranked chunks (~1,900 tokens)<br/>+ header (8,400 original → 1,900 delivered)
+    San-->>Cop: 4 ranked files (~1,900 tokens)<br/>+ header (8,400 original → 1,900 delivered)
     Cop->>Mdl: prompt + those chunks
     Mdl-->>Cop: explains the full flow, citing the real symbols
     Cop-->>Dev: grounded answer + (hover shows which model ran)
@@ -240,7 +240,7 @@ sequenceDiagram
 Instead of dumping four whole files (~8,400 tokens of raw code, comments, and boilerplate), Sankshep sent a compact, ranked bundle. For the Angular side it kept the relevant method signatures and the specific call that hits the API; for the .NET side it kept the controller action and the token-signing method body (the *target* of the question), while collapsing unrelated methods to signatures:
 
 ```csharp
-// AuthController.cs  (relevance: 0.94) — target, kept in full
+// AuthController.cs  — ranked 1st, kept in full
 [HttpPost("login")]
 public async Task<IActionResult> Login(LoginRequest req) {
     var user = await _users.ValidateAsync(req.Email, req.Password);
@@ -250,14 +250,14 @@ public async Task<IActionResult> Login(LoginRequest req) {
 }
 ```
 ```typescript
-// auth.service.ts  (relevance: 0.91) — target, kept
+// auth.service.ts  — ranked 2nd, kept
 login(email: string, password: string) {
   return this.http.post<{token: string}>('/api/auth/login', { email, password })
     .pipe(tap(r => this.store.setToken(r.token)));
 }
 ```
 ```csharp
-// JwtTokenService.cs  (relevance: 0.89) — target body kept
+// JwtTokenService.cs  — ranked 3rd, target body kept
 public string Issue(User user) {
     var claims = new[] { new Claim(ClaimTypes.NameIdentifier, user.Id) /* … */ };
     return new JwtSecurityTokenHandler().WriteToken(/* … */);

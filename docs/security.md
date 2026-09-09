@@ -69,23 +69,36 @@ These controls are enforced in code and covered by tests/CI:
 |---|---|
 | **Egress** | No repo content leaves the host; socket-level test + no-egress air-gap CI prove it. |
 | **Telemetry** | Off by default; opt-in only; counts + folder-name tag, never paths/queries/code. |
-| **Path scope** | Relative tool paths are confined to the served `--repo` root — a `../..` escape is rejected. |
+| **Path scope** | Containment covers **all three path-taking tools** — `get_context`, `summarize_repo` and `index_repo` — not just one. A `../..` escape is rejected, a rooted-but-not-fully-qualified path such as `/etc` is resolved against the repo root rather than taken literally, and a symlink or junction whose target leaves the root is **skipped rather than followed**. On the HTTP transport the absolute-path carve-out is refused outright. |
 | **SQL** | All SQLite access (facts, vectors, stats) uses bound parameters — no string-built queries. |
 | **Deserialization** | Typed YAML/JSON only; no polymorphic type resolution, no `BinaryFormatter`. |
-| **Untrusted repos** | `.gitignore` matching is ReDoS-safe (no catastrophic backtracking); `.docx`/`.pdf` extraction is size-capped against decompression bombs; directory walks are iterative and symlink-cycle-safe. |
+| **Untrusted repos** | `.gitignore` matching is ReDoS-safe — every pattern compiles with `RegexOptions.NonBacktracking`, which guarantees linear time in the input length. `.docx`/`.pdf` extraction is size-capped against decompression bombs, source files have their own byte cap, and directory walks are iterative and symlink-cycle-safe. A directory that cannot be read yields a **partial** result rather than failing the whole call. Nothing in a served repository is configuration: neither transport reads `appsettings.json`. |
 | **Auth** | Fails closed on unauthenticated non-loopback binds; API keys compared with a constant-time equality. |
 | **Secrets** | API keys / tokens are never written to logs; all logging is paths/errors/counts only. |
-| **Isolation** | Container runs non-root, read-only root filesystem, all Linux capabilities dropped. |
+| **Isolation** | The image runs as a non-root user. A read-only root filesystem and dropping all Linux capabilities are **runtime** settings, not image ones: the Helm chart sets both, and the `docker run` recipe on the [deployment page](deployment.md) passes them. |
 
-## Independent security review
+## Security review — who did it, and what that is worth
 
-Sankshep undergoes **adversarial security review** — findings are refuted before they're accepted, and
-confirmed issues are fixed before release. The most recent review (**v1.8.0**) audited ten dimensions
-(path traversal, injection, deserialization, egress, secrets, tool-input abuse, HTTP-tier auth,
-supply-chain, denial-of-service, and command/crypto misuse) and found **no critical or high-severity
-vulnerabilities**. The medium/low hardening items it surfaced — the fail-closed auth bind, ReDoS-safe
-ignore matching, relative-path containment, document size limits, and cycle-safe enumeration above — are
-remediated as of **v1.8.0**.
+**Maintainer-run and AI-assisted. Not independent, and not a third-party audit.** This page previously
+called it an "independent security review", which it has never been: the reviews are performed by the
+maintainer with AI assistance, and every finding is verified by the maintainer. No external firm has
+audited Sankshep. If you need one for a procurement process, you do not have one.
+
+That is worth stating flatly, because the two things are not close in value and the word "independent" is
+the one a reader would rely on.
+
+What the process actually is: findings are refuted before they are accepted, and confirmed issues are fixed
+before release. The **v1.8.0** review covered ten dimensions — path traversal, injection, deserialization,
+egress, secrets, tool-input abuse, HTTP-tier auth, supply chain, denial of service, and command/crypto
+misuse — and found no critical or high-severity vulnerabilities. The medium and low hardening items it
+surfaced (the fail-closed auth bind, ReDoS-safe ignore matching, relative-path containment, document size
+limits and cycle-safe enumeration above) were remediated in v1.8.0.
+
+A second and much harder review followed it. The **2026-09-05 production-readiness audit** raised 189
+findings across thirteen dimensions and scored v1.8.0 **45/100 — not ready**, including three critical
+defects producing silently wrong output on the default path. Every one of those is fixed in v2.0.0. That
+audit is the reason this page now says "maintainer-run" instead of "independent": it is exactly the kind of
+claim a self-review is worst at checking about itself.
 
 ## Supply chain
 
@@ -94,9 +107,16 @@ short-lived NuGet key at release time, so **no long-lived API key is stored** an
 enforced at build time: the real vulnerability codes (**NU1901–NU1904**) are treated as build **errors**, so
 a flagged advisory fails the build — that's how the OpenTelemetry 1.10.0 CVE was caught.
 
-Container images are published to GHCR, run as a non-root user with a read-only root filesystem and all Linux
-capabilities dropped, and pin their base image by minor tag. The embedding-model download is SHA-256 verified
-and fail-closed. For the strictest posture, pin the image by digest and pre-bake or side-load the model.
+Container images are published to GHCR and run as a non-root user. **A read-only root filesystem and
+dropped capabilities come from how you RUN the image, not from the image itself** — nothing an image
+contains can enforce either. The Helm chart sets `readOnlyRootFilesystem: true` and `drop: [ALL]`, and the
+`docker run` recipe on the [deployment page](deployment.md) passes `--read-only --cap-drop=ALL`; a bare
+`docker run` gets neither.
+
+The image pins **both** its base images by digest, and it carries a full SLSA provenance statement and an
+SPDX SBOM, which `docker buildx imagetools inspect` will show you. The embedding-model download is SHA-256
+verified and fail-closed. For the strictest posture, pin the image by digest and pre-bake or side-load the
+model.
 
 ## Reporting a vulnerability
 

@@ -16,8 +16,10 @@ dotnet tool install -g sankshep
 sankshep --version                   # verify the install (serve is launched by your MCP client)
 ```
 
-Requires the [.NET SDK/runtime 9](https://dotnet.microsoft.com/download/dotnet/9.0). Update with
-`dotnet tool update -g sankshep`.
+Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0), **or** the .NET 10
+runtime plus the **ASP.NET Core 10 shared runtime** — the server framework-references
+`Microsoft.AspNetCore.App` even in stdio mode, so the plain .NET runtime on its own is not enough. The SDK
+includes both. Update with `dotnet tool update -g sankshep`.
 
 !!! tip "One-shot with dnx"
     With the .NET 10 SDK you can run the tool without a global install — handy for trying it out or
