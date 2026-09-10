@@ -96,9 +96,18 @@ limits and cycle-safe enumeration above) were remediated in v1.8.0.
 
 A second and much harder review followed it. The **2026-09-05 production-readiness audit** raised 189
 findings across thirteen dimensions and scored v1.8.0 **45/100 — not ready**, including three critical
-defects producing silently wrong output on the default path. Every one of those is fixed in v2.0.0. That
-audit is the reason this page now says "maintainer-run" instead of "independent": it is exactly the kind of
-claim a self-review is worst at checking about itself.
+defects producing silently wrong output on the default path.
+
+**All three criticals are fixed in v2.0.0.** Of the 189 findings, 162 are closed, 23 were refuted on
+re-examination, and **four ship deferred** rather than quietly: one blocked by an SDK bug (NuGet lock
+files), two awaiting a decision rather than a fix (the sqlite-vec native's provenance, and a licensing
+question), and one needing the maintainer's hands (rotating a key out of a local benchmark script). The
+security-relevant one of those four is the sqlite-vec provenance question; it is stated here because a
+release that listed only its closures would be making the same kind of claim this remediation spent itself
+removing.
+
+That audit is also the reason this page says "maintainer-run" instead of "independent": it is exactly the
+kind of claim a self-review is worst at checking about itself.
 
 ## Supply chain
 

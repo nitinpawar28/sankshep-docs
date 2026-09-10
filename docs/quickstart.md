@@ -35,13 +35,21 @@ the `compose_task_prompt` prompt. If not, see [Troubleshooting](troubleshooting.
 `get_context` and `summarize_repo` work immediately — they read files directly. `search_code` needs an index:
 
 ```text
-index_repo   path: "."          → index_repo: indexed <repo>; the index now holds N chunk(s).
+index_repo   (no arguments)     → index_repo: indexed N file(s) under <repo>; the index now holds M chunk(s) in total.
 ```
 
 The first `index_repo` downloads the local embedding model (~127 MB, once) — expect a short one-time
-delay; fully offline afterwards.
+delay; fully offline afterwards. When your client sends a progress token, `index_repo` reports one
+notification per file, so a first index of a large repository is distinguishable from a hang.
 
-A path that matches nothing, or holds no supported source, returns an **error** — not a silent success.
+A path that matches nothing, holds no supported source, or names a file rather than a directory returns an
+**error** — not a silent success. So does `search_code` against an index that has never been built: it says
+the index is empty and tells you to run `index_repo`, rather than returning an empty result you might read
+as "that code does not exist".
+
+!!! note "Upgrading from 1.x?"
+    Your existing index is discarded and rebuilt once, on first start. See
+    [Upgrading to 2.0.0](upgrading-2.0.md).
 
 ## 5. Ask a grounded question
 

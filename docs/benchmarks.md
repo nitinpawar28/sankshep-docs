@@ -41,8 +41,10 @@ Per question (recall @ compression):
     - **Aggressive is lossy by design.** It collapses the very bodies that hold the answers (recall 0.11),
       so it is for maximum compression of structure and signatures — never point it at a "how does X work"
       question.
-    - **A file larger than the budget is delivered whole or not at all.** `get_context` treats each file as
-      one atomic chunk; size the budget to clear the largest relevant file (sub-file chunking is on the roadmap).
+    - **A file larger than the budget is truncated, not dropped.** Up to 2.0.0 it was dropped whole: a
+      single file over the budget produced nothing at all, and the caller was told only that a chunk had
+      been withheld. It is now truncated at a line boundary and the header says so, so the biggest file in
+      a tree no longer decides whether you get an answer.
     - **A fact that lives only in a doc-comment drops at Balanced.** Balanced strips doc-comments, so a key
       point documented *only* in a `///` comment (not in the code itself) is recalled at Conservative but not
       Balanced — this is why *status sync* dips to 0.86 vs Conservative's 1.00.

@@ -63,6 +63,24 @@ Run `--http` as a native service:
 - **Windows:** `sankshep service install --repo C:\path\to\repo` (elevated) registers a Windows Service
   with auto-start and restart-on-crash; logs go to the Event Log. `sankshep service uninstall` (elevated)
   removes it.
+
+!!! warning "Changed in 2.0.0 — `service install` refuses a user-writable binary"
+    A service registered by an administrator runs as `LocalSystem`, so anyone who can replace its
+    executable can run code as `LocalSystem`. `dotnet tool install -g` puts the binary under your **user
+    profile**, which you can write — so installing a service from there handed that privilege to your own
+    account, and to anything running as you.
+
+    The installer now refuses that and names the principal that could replace the file. **Copy the binary
+    somewhere only administrators can write and install from there**, e.g. `C:\Program Files\Sankshep\`.
+
+!!! info "Changed in 2.0.0 — a supervised service keeps state outside the repository"
+    Under the Windows SCM or systemd, `facts.db`, `index.db` and `stats.db` move from `<repo>/.sankshep`
+    to a machine-wide root (`%ProgramData%\Sankshep` on Windows), and the embedding model moves out of the
+    service account's profile. Startup names both paths.
+
+    **The index rebuilds and authored memory is not migrated.** Copy `facts.db` across by hand if you want
+    to keep it — nothing copies it for you, because copying a file out of an attacker-controllable
+    directory while running as `LocalSystem` is the defect the move exists to close.
 - **Linux:** a `systemd` unit (`Type=notify`, journald, restart-on-failure) — reproduced in full below,
   because the source repository is private and "the provided unit" was not something a reader could
   obtain.
@@ -128,8 +146,31 @@ repository fresh and read-only, plus model/state PVCs. Native sidecar on K8s ≥
 classic-sidecar fallback for older clusters.
 
 The pod binds `0.0.0.0`, so like the container it **fails closed**: set `auth.apiKeys` (recommended —
-source them from a `Secret`) or `auth.allowUnauthenticated=true` for a trusted network. A default
-`helm install` with both unset will not start.
+source them from a `Secret`, via `auth.existingSecret`) or `auth.allowUnauthenticated=true` for a trusted
+network. A default `helm install` with both unset will not start.
+
+!!! warning "Breaking in chart 1.3.0 — Ingress users will get 403 until they act"
+    The chart now renders a `Host` allow-list by default, derived from **this release's own Service DNS**
+    plus the loopback names a `kubectl port-forward` makes a browser send. That is the hardening a routable
+    bind calls for (see [Security & privacy](security.md)), and before 1.3.0 setting it meant hand-writing
+    `extraEnv`.
+
+    An **Ingress hostname cannot be derived from anything the chart knows**, so it has to be declared:
+
+    ```yaml
+    allowedHosts:
+      extra: ["sankshep.internal.example.com"]
+    ```
+
+    `allowedHosts.enabled: false` restores the previous behaviour exactly. **Health probes are exempt
+    either way**, so a 403 here never takes the pod down — and `NOTES.txt` prints the effective list after
+    install, so nobody has to guess why a request was refused.
+
+    Also in 1.3.0: the pod no longer mounts a Kubernetes API token it never used, the liveness probe gets
+    5 seconds instead of Kubernetes' 1-second default (this pod runs ONNX inference), and an optional
+    ingress-only `NetworkPolicy` is available — off by default, because a network policy is a decision
+    about your cluster, not one a chart should make. No egress policy is templated: that would break
+    git-sync and the model download.
 
 ## Air-gapped / zero-egress
 

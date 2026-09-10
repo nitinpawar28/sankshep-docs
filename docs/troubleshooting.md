@@ -27,11 +27,14 @@ Relative paths resolve against the **served `--repo` root**, not your shell's wo
 and `summarize_repo` report a bad path as `path not found: <p> (resolved to <root>/<p>)`; `get_context` instead
 writes `// WARNING: nothing matched: <p>` into its header, and when nothing at all matched returns
 `// NO CONTEXT was returned: ...` as an error. In each case the path is wrong relative to `--repo` — correct
-it, or pass an absolute path. (In earlier versions these tools resolved against the server's own working
-directory and could silently target the wrong repo; they now anchor to `--repo` and fail loudly.)
+it. (In earlier versions these tools resolved against the server's own working directory and could silently
+target the wrong repo; they now anchor to `--repo` and fail loudly.)
 
-To reach a file **outside** the served repo, pass an **absolute** path: a relative `paths` value that climbs
-out of `--repo` via `..` is rejected as unmatched rather than read (`get_context`).
+**Do not reach for an absolute path â€” in 2.0.0 it usually will not help.** A relative value that climbs out
+of `--repo` via `..` is refused on both transports, and an absolute path is accepted only by the **stdio**
+transport and only when it points **inside** the served root. The **HTTP** transport refuses every absolute
+path, and `index_repo` refuses one on both transports. To work with a tree outside the repository, serve a
+root that contains it.
 
 ## `index_repo` says it indexed chunks, but `search_code` returns nothing {#index-built-but-search-empty}
 
@@ -55,8 +58,17 @@ On v2.0.0 and later, if `index_repo` reports chunks and `search_code` returns no
 
 ## `search_code` returns nothing on a fresh repo
 
-Expected until you run `index_repo`. An empty index returns `{count:0,results:[]}` cleanly (no error, no model
-download). Build the index first.
+Expected until you run `index_repo` â€” and since 2.0.0 the tool **says so instead of returning an empty
+success**. It is an error whose message states that the index is empty, that this is not evidence the code is
+absent, and which command to run:
+
+```text
+search_code: the index is empty - nothing has been indexed for this repo yet, or the index was purged.
+This is NOT evidence that the code does not exist. Run index_repo with path "." first ...
+```
+
+The old `{count:0,results:[]}` was indistinguishable from a genuine no-match, which is how a model came to
+answer "that code does not exist" about code that did. No model download happens either way.
 
 ## `token_report` shows a negative `compressionPct`
 
@@ -74,10 +86,14 @@ See [Install → HTTP clients](install.md#connect-over-http-remote-clients) and 
 
 ## HTTP mode: `Refusing to start ... NO authentication on a non-loopback address`
 
-As of v1.8.0, a non-loopback bind (`ASPNETCORE_URLS=http://0.0.0.0:8080` — the default in the container image
-and Helm chart) with no authentication **fails closed**: the server throws `InvalidOperationException` and
-exits rather than serve MCP tools — and the `/dashboard` + `/api/stats` surfaces — with no authentication to the
-network. Resolve it one of three ways:
+A non-loopback bind (`ASPNETCORE_URLS=http://0.0.0.0:8080` — the default in the container image and Helm
+chart) with no authentication **fails closed** rather than serve MCP tools, `/dashboard` and `/api/stats` to
+the network unauthenticated.
+
+Since 2.0.0 the refusal is **one line on stderr and exit code 1**. It used to surface as an unhandled
+`InvalidOperationException`: a .NET stack trace and exit code `0xE0434352`, which reads like a crash to a
+service manager and to anyone watching a container restart. Anything that parsed the old exit code needs
+updating. Resolve it one of three ways:
 
 - **Enable authentication** — set `SANKSHEP_API_KEYS` (clients then send `Authorization: Bearer <key>`) or
   `SANKSHEP_OAUTH_*`.

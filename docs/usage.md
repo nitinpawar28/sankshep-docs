@@ -10,7 +10,7 @@ mode**; in Claude clients they're available directly.
 | **`get_context`** | Token-minimized context for given paths, relevance-ranked (semantic + lexical): strips comments, collapses method bodies that aren't relevant to your query, packs under a token budget, and reports the savings. Returns everything as one plain, readable text block — a short header stating how much was compressed and what was withheld (so nothing is silently truncated), followed by the code. |
 | **`search_code`** | Semantic (nearest-neighbor) search over a local embedding index (bge-small, ONNX, offline). |
 | **`index_repo`** | Builds/refreshes the semantic index over code **and** `.docx` / `.pdf` documents. |
-| **`summarize_repo`** | Tree-sitter-backed API surface of a repository's C# (`.cs`) files. |
+| **`summarize_repo`** | Tree-sitter-backed API surface of a tree, in every language Sankshep parses. Bounded by `maxTokens`, and it says so when it truncates. |
 | **`remember` / `recall`** | A per-repo, branch-scoped fact store — decisions and conventions that persist across sessions and clients. |
 | **`export_decisions`** | Writes remembered decisions to a `DECISIONS.md`. |
 | **`token_report`** | Cumulative token accounting per tool: how far minimization compressed the code it delivered, and how much context it searched to find it. |
@@ -32,10 +32,10 @@ only what it verifies.
 | Language | Comment strip | Body collapse | Notes |
 |---|---|:---:|---|
 | C# | ✓ | ✓ | Trims unused `using`s at `level=Aggressive`. |
-| JavaScript / TypeScript | ✓ | ✓ | `.js .mjs .cjs .jsx .ts .tsx` |
+| JavaScript / TypeScript | ✓ | ✓ | `.js .mjs .cjs .jsx .ts`; `.tsx` uses its own grammar, so JSX inside a component is parsed rather than guessed at |
 | Go | ✓ | ✓ | |
 | Java | ✓ | ✓ | |
-| C / C++ | ✓ | ✓ | `.c .h` → C; `.cpp .cc .cxx .hpp .hh .hxx` → C++ |
+| C / C++ | ✓ | ✓ | `.c` → C; `.cpp .cc .cxx .h .hpp .hh .hxx` → C++ |
 | Rust | ✓ | ✓ | |
 | PHP | ✓ | ✓ | |
 | Python | ✓ | — | Indentation blocks have no brace body to elide. |
@@ -59,9 +59,15 @@ minimization.
    documents locally.
 2. **Ask grounded questions:** the model calls `get_context` / `search_code` to pull only the relevant,
    minimized slice — not whole files.
-3. **Remember decisions:** "Remember: we sign JWTs with RS256, keys rotate monthly." The fact is stored
-   locally and **recalled later, even from a different client**.
+3. **Remember what you decided:** "Remember: we sign JWTs with RS256, keys rotate monthly." The fact is
+   stored locally and **recalled later, even from a different client**.
 4. **Compose a task:** run `compose_task_prompt` to get a grounded, structured prompt for a change.
+
+!!! tip "Category matters for step 4"
+    `compose_task_prompt`'s "Project conventions" section injects facts remembered under the
+    **`convention`** category and no other. File a rule you want the model to follow as `convention`;
+    `decision` is for the record and for `export_decisions`. The composed prompt names the categories it
+    skipped, so an empty section tells you where your facts went.
 
 ## Cross-client memory
 

@@ -1,6 +1,6 @@
 # The prompt composer
 
-*Grounding any coding prompt in minimized code context + remembered project decisions — in one shot.*
+*Grounding any coding prompt in minimized code context + remembered project conventions — in one shot.*
 
 `compose_task_prompt` is an MCP **prompt** that, given a task description, assembles a single grounded,
 well-structured prompt by combining two things Sankshep already produces: **relevance-ranked,
@@ -93,7 +93,10 @@ conventions:
 
 - **Task** — your one-line intent, verbatim.
 - **Relevant code** — AST-minimized, ranked snippets from `get_context`, each with its file path.
-- **Project conventions** — remembered decisions from `recall`, branch-scoped, deduped, most-recent-first.
+- **Project conventions** — facts remembered under the **`convention`** category, branch-scoped, deduped,
+  most-recent-first. Only that category: a fact filed as `decision`, `gotcha` or anything else is never
+  injected here, however relevant it looks. When the section is empty it says so, and names the categories
+  your facts are actually under, so a mis-filed rule is visible rather than silently ignored.
 - **Constraints** — guardrails (stay within the shown code, don't add dependencies, follow conventions).
 
 **Worked example — "add rate limiting to the login endpoint":**

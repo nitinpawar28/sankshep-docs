@@ -27,7 +27,7 @@ includes both. Update with `dotnet tool update -g sankshep`.
 
     ```bash
     dnx sankshep serve --repo .          # latest
-    dnx sankshep@1.8.0 serve --repo .    # pinned version
+    dnx sankshep@2.0.0 serve --repo .    # pinned version
     ```
 
 ## Point your MCP client at it
@@ -121,7 +121,8 @@ All optional. Defaults keep Sankshep local-only with no telemetry. See
 | `SANKSHEP_PROMETHEUS` | `1` = expose the `/metrics` scrape endpoint (opt-in) | off |
 | `SANKSHEP_FLEET_TEAM` / `SANKSHEP_FLEET_INSTANCE` | Optional low-cardinality labels on exported metrics | unset |
 | `ASPNETCORE_URLS` | HTTP bind address(es) | `http://127.0.0.1:8080` |
-| `SANKSHEP_ALLOWED_HOSTS` | Host-header allowlist (DNS-rebinding hardening for non-loopback binds; applied only when set) | unset (Host header unrestricted; loopback protection is the default bind) |
+| `SANKSHEP_ALLOWED_HOSTS` | `Host`-header allow-list, compared whole with the port ignored. Enforced in the pipeline, so health probes stay reachable whatever it says. | loopback names on a loopback bind; **empty on any other bind**, which accepts no `Host` |
+| `SANKSHEP_ALLOWED_ORIGINS` | `Origin` allow-list for browser callers. A request with no `Origin` is unaffected. | empty (no cross-origin request accepted) |
 | `SANKSHEP_ALLOW_UNAUTHENTICATED` | `1` = explicitly permit an unauthenticated non-loopback bind (trusted, network-isolated hosts only) | off — server fails closed on a non-loopback bind with no auth |
 | `SANKSHEP_API_KEY` / `SANKSHEP_API_KEYS` | Bearer key(s) for ApiKey auth mode (HTTP) | unset (no key auth) |
 | `SANKSHEP_OAUTH_AUTHORITY` / `_AUDIENCE` / `_RESOURCE` / `_SCOPES` | OAuth 2.1 resource-server validation (HTTP) | unset (OAuth off) |

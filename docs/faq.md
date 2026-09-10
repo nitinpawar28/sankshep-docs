@@ -22,8 +22,10 @@ rebuild. See [Troubleshooting](troubleshooting.md).
 
 ## `summarize_repo` returns almost nothing for my Go / TS / Python repo
 
-`summarize_repo` maps **C# (`.cs`)** files only. For other languages, use `search_code` to find the relevant
-chunks and `get_context` to minimize them.
+Not since 2.0.0 — it covers **every language on the [languages table](usage.md)**, not just C#. If a summary
+still looks thin, check the second line of the response: it says `TRUNCATED: N of M files shown` when the
+`maxTokens` budget stopped the walk. Raise `maxTokens`, summarize a subdirectory, or use `search_code` to go
+straight to what you need.
 
 ## My HTML / SCSS / template files aren't in the results
 
@@ -32,8 +34,19 @@ documents. HTML, SCSS, and framework templates are not currently indexed or mini
 
 ## `get_context` returned nothing for a file outside my repo
 
-Relative paths are confined to the served `--repo` root (a `../..` escape is rejected, not read). To pull in a
-file outside the repo deliberately, pass an **absolute** path.
+That is deliberate, and in 2.0.0 the boundary is tighter than it was. Relative paths are confined to the
+served `--repo` root — a `../..` escape is refused, not read — and the refusal now says so instead of
+returning an empty result.
+
+An absolute path is **not** a general escape hatch:
+
+| Transport | Absolute path inside the root | Absolute path outside the root |
+|---|---|---|
+| stdio | accepted | refused |
+| HTTP | refused | refused |
+
+`index_repo` refuses an absolute path on **both** transports. If you need a file that lives outside the
+repository, serve a root that contains it, or copy it in. See [Security](security.md).
 
 ## Which minimization level should I use?
 
