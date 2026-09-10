@@ -26,7 +26,7 @@ bodies, packs under a token budget, and leads with a header stating what was com
 | Argument | Type | Default | Notes |
 |---|---|---|---|
 | `query` | string | — | What you're looking for; ranks the files under `paths` (blended semantic + lexical relevance). Required. |
-| `paths` | string[] | — | Files or directories (repo-relative or absolute). Required. |
+| `paths` | string[] | — | Files or directories, repo-relative. Required. (An absolute path is stdio-only and must be inside the root — see the note above.) |
 | `tokenBudget` | integer | — | Max tokens of context to return. Required. |
 | `level` | string | `Balanced` | `Conservative` · `Balanced` · `Aggressive`. |
 
@@ -146,7 +146,7 @@ If it returns nothing right after a successful `index_repo`, see
 ## `index_repo`
 
 Builds or refreshes the semantic index (chunks + local embeddings) that `search_code` uses. Downloads the
-embedding model (~127 MB, once) on first run.
+embedding model (~127 MiB, once) on first run.
 
 | Argument | Type | Default | Notes |
 |---|---|---|---|

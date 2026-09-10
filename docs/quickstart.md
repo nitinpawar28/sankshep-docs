@@ -38,7 +38,7 @@ the `compose_task_prompt` prompt. If not, see [Troubleshooting](troubleshooting.
 index_repo   (no arguments)     → index_repo: indexed N file(s) under <repo>; the index now holds M chunk(s) in total.
 ```
 
-The first `index_repo` downloads the local embedding model (~127 MB, once) — expect a short one-time
+The first `index_repo` downloads the local embedding model (~127 MiB, once) — expect a short one-time
 delay; fully offline afterwards. When your client sends a progress token, `index_repo` reports one
 notification per file, so a first index of a large repository is distinguishable from a hang.
 

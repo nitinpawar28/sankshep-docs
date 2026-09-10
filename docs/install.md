@@ -130,7 +130,7 @@ All optional. Defaults keep Sankshep local-only with no telemetry. See
 ## First run
 
 The first semantic search or index builds a local embedding index and, once, downloads the embedding
-model (~127 MB) to `~/.sankshep/models`. After that, everything is offline. In air-gapped environments
+model (~127 MiB) to `~/.sankshep/models`. After that, everything is offline. In air-gapped environments
 you can side-load the model and set `SANKSHEP_MODEL_OFFLINE=1` — see [Deployment](deployment.md#air-gapped-zero-egress).
 
 Next: the [tool reference](tool-reference.md), a [5-minute quickstart](quickstart.md), and the

@@ -14,7 +14,7 @@ mode, not **Ask**. Also check:
 
 ## First run is slow, or fails to start offline
 
-The first `index_repo` / `search_code` downloads the embedding model (~127 MB, once). If the machine is
+The first `index_repo` / `search_code` downloads the embedding model (~127 MiB, once). If the machine is
 air-gapped, that download fails. Side-load the model and set `SANKSHEP_MODEL_DIR` to its folder, and
 `SANKSHEP_MODEL_OFFLINE=1` to skip the download attempt entirely. Each model file is checksum-verified against
 the manifest: a corrupt or wrong side-loaded `model.onnx` / `vocab.txt` is treated as *missing or invalid* and,

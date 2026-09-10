@@ -5,7 +5,7 @@ Short answers to the first-run surprises — most are discoverable only by hitti
 ## The first `index_repo` is slow, or downloads a lot
 
 The first time you use embeddings (`index_repo`, or `search_code` against a non-empty index), Sankshep
-downloads the local embedding model (~127 MB, once, checksum-verified). It is fully offline afterwards. For
+downloads the local embedding model (~127 MiB, once, checksum-verified). It is fully offline afterwards. For
 air-gapped hosts, side-load the model and set `SANKSHEP_MODEL_OFFLINE=1` — see [Deployment](deployment.md#air-gapped-zero-egress).
 
 ## My container / Helm pod won't start — "Refusing to start … no authentication"
