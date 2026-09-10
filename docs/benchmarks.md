@@ -3,7 +3,23 @@
 Sankshep's pitch — *maximum context, minimum tokens* — is only credible if the savings are **measured,
 not marketed**. Two things are quantified: how many tokens are saved, and whether answer quality holds.
 
-## Latest measured results
+## Measured results — on v1.8.0
+
+!!! warning "These numbers describe v1.8.0, not the current release"
+    Every figure in this section was measured on **v1.8.0**. They are published unchanged rather than
+    restated as current, because **2.0.0 changed both halves of what they measure**: minimization
+    (a leading same-line comment no longer deletes the code after it; a file over budget is truncated
+    instead of dropped whole; Go, Ruby, C, C++, JavaScript and TypeScript body collapse all changed) and
+    retrieval (chunks are now sized to the embedding model's 512-token window, so every index rebuilt).
+
+    Some of those changes should improve recall and some should reduce compression. **Which, and by how
+    much, is not something to estimate in a table** — so the table stays labelled instead of being
+    adjusted, and it is not evidence about 2.0.0 in either direction.
+
+    Re-measuring needs a model judge, and a model judge needs an API key the project does not currently
+    hold as a repository secret. The harness itself is verified against 2.0.0 with the offline judge,
+    which proves it runs but produces **no quality numbers** — a keyword count cannot tell paraphrase
+    from omission, which is the whole reason the real judge is a model.
 
 A real, **proprietary production C# service** (private) — 8 questions across its order-execution
 subsystem, **50 atomic, verified facts**, each read and checked against the cited method. Individual
