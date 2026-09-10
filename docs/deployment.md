@@ -45,14 +45,14 @@ docker run --rm -p 8080:8080 \
   -v sankshep-state:/state \
   -v sankshep-models:/models \
   -e SANKSHEP_API_KEYS=change-me \
-  ghcr.io/swapnawat/sankshep:v2.0.0
+  ghcr.io/nitinpawar28/sankshep:v2.0.0
 ```
 
 !!! note "Why a version and not `:latest`"
     `:latest` exists and moves with every release, which makes it fine for a throwaway try and wrong for
     anything you want to reproduce — two machines, or the same machine a week apart, can get different
     bytes under that name. Pin the version, or pin a digest
-    (`ghcr.io/swapnawat/sankshep@sha256:...`) if you need the strongest guarantee. The image carries SLSA
+    (`ghcr.io/nitinpawar28/sankshep@sha256:...`) if you need the strongest guarantee. The image carries SLSA
     provenance and an SPDX SBOM, so `docker buildx imagetools inspect` will tell you what you pulled.
 
 `--read-only --cap-drop=ALL` are the flags that actually harden the container, and **an image cannot set
