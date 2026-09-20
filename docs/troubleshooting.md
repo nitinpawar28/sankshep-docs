@@ -30,7 +30,7 @@ writes `// WARNING: nothing matched: <p>` into its header, and when nothing at a
 it. (In earlier versions these tools resolved against the server's own working directory and could silently
 target the wrong repo; they now anchor to `--repo` and fail loudly.)
 
-**Do not reach for an absolute path â€” in 2.0.0 it usually will not help.** A relative value that climbs out
+**Do not reach for an absolute path — in 2.0.0 it usually will not help.** A relative value that climbs out
 of `--repo` via `..` is refused on both transports, and an absolute path is accepted only by the **stdio**
 transport and only when it points **inside** the served root. The **HTTP** transport refuses every absolute
 path, and `index_repo` refuses one on both transports. To work with a tree outside the repository, serve a
@@ -58,7 +58,7 @@ On v2.0.0 and later, if `index_repo` reports chunks and `search_code` returns no
 
 ## `search_code` returns nothing on a fresh repo
 
-Expected until you run `index_repo` â€” and since 2.0.0 the tool **says so instead of returning an empty
+Expected until you run `index_repo` — and since 2.0.0 the tool **says so instead of returning an empty
 success**. It is an error whose message states that the index is empty, that this is not evidence the code is
 absent, and which command to run:
 

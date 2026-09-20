@@ -10,13 +10,22 @@ returns that prompt in **one shot**, for the model to act on.
 The framing that governs this whole page: **the composer grounds a prompt in minimized-context + memory
 — it does not *generate* the prompt's intent, and it never generates the answer.**
 
-**Three benefits, all measurable (see [Benchmarks](benchmarks.md)):**
+**Three claims, and they are not equally well supported — see [Benchmarks](benchmarks.md):**
 
-1. **Fewer roundtrips** — a grounded first prompt removes the "let me look around the codebase first"
-   exploration turns; each eliminated turn saves a whole prompt's worth of tokens.
-2. **Higher accuracy** — grounding in the *actual* code and conventions stops the model inventing
-   patterns the project doesn't use.
-3. **Less token waste** — minimized context instead of whole files, and no wasted exploratory turns.
+1. **Fewer roundtrips** — a grounded first prompt is meant to remove the "let me look around the
+   codebase first" turns. **Not measured.** A single-shot harness cannot see roundtrips; it needs an
+   agent simulation, which does not exist yet. Treat this as the design intent, not a result.
+2. **Higher accuracy** — grounding in the *actual* code and conventions is meant to stop the model
+   inventing patterns the project does not use. **Measured, and the honest answer is parity, not a
+   gain.** The composer is a wrapper around `get_context`, and it scored 0.51 mean key-point recall
+   against that engine's 0.66 on the same questions at the same budgets, because it was spending part of
+   the caller's token budget on remembered conventions. That is fixed — it now reaches 0.66–0.68, level
+   with the engine. Against an uncapped dump of every raw file it is 0.66 against 1.00.
+3. **Less token waste** — **measured: 72.6% fewer tokens** than dumping the raw whole files, at 0.66
+   recall against that baseline's 1.00.
+
+The composer's case is therefore token cost, not accuracy: it delivers roughly a third of the tokens for
+roughly two thirds of the facts, in one grounded prompt instead of several exploratory turns.
 
 ## Positioning vs. GitHub Copilot prompt files
 
