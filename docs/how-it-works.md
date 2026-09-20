@@ -237,7 +237,7 @@ sequenceDiagram
 
 ### What Sankshep actually returned (illustrative)
 
-Instead of dumping four whole files (~8,400 tokens of raw code, comments, and boilerplate), Sankshep sent a compact, ranked bundle. For the Angular side it kept the relevant method signatures and the specific call that hits the API; for the .NET side it kept the controller action and the token-signing method body (the *target* of the question), while collapsing unrelated methods to signatures:
+Instead of dumping four whole files, Sankshep sent a compact, ranked bundle. For the Angular side it kept the relevant method signatures and the specific call that hits the API; for the .NET side it kept the controller action and the token-signing method body (the *target* of the question), while collapsing unrelated methods to signatures:
 
 ```csharp
 // AuthController.cs  — ranked 1st, kept in full
@@ -298,7 +298,7 @@ flowchart LR
 - **Lever 1 — Retrieval:** semantic search sends the 4 relevant chunks instead of 40 whole files. This is where most of the practical benefit lives, but Sankshep does **not** report it as tokens saved — sending less is trivially "cheaper", so the number would be unbounded. Whether it picked the *right* 5 is what [recall](benchmarks.md) measures.
 - **Lever 2 — Minimization:** AST transforms strip comments and collapse non-target method bodies to signatures, shrinking what remains. This is what `token_report` reports, as **compression**: delivered tokens against the original size of the same files.
 
-The ~8,400-token figure above is a **naive-send baseline** — the four whole files you'd have pasted yourself. That is a fair comparison. It is *not* the same as the tokens Sankshep *searched*, which on a large repository can run to millions and is never treated as a baseline.
+**The token figures in this walkthrough are illustrative, not measured.** No run produced 8,400 or 1,900; they are round numbers chosen to show the shape of the two levers on a plausible four-file request, and the ~8,400 is a naive-send baseline — the four whole files you would have pasted yourself, which is the fair comparison. For figures that came out of a real run on a named codebase, with the judge's own error bar stated, see [Benchmarks](benchmarks.md): 139,841 tokens naive against 38,320 composed, a 72.6% reduction. It is *not* the same as the tokens Sankshep *searched*, which on a large repository can run to millions and is never treated as a baseline.
 
 For a .NET + Angular stack specifically: **C#/.NET compresses very well** (verbose namespaces, XML docs, attributes, brace-heavy blocks collapse dramatically), and the **TypeScript side of an Angular app** (`.ts` components and services) is indexed and minimized too. Angular HTML templates and SCSS are **not currently indexed or minimized** — they're skipped end to end, so an Angular question is answered from the `.ts` side (markup/style support is future work). The combined effect on a typical feature-scoped question is a large reduction in delivered tokens — and, because the model wades through less noise, often a *better* answer too.
 
