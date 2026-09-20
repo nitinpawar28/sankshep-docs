@@ -1,12 +1,44 @@
 # Changelog
 
-Notable changes by release. The current release is **2.0.0**.
+Notable changes by release. The current release is **3.0.0**.
 
 !!! note "Corrected against the tags"
 
     Two entries below were previously filed under the wrong release, and the largest change in 1.6.0 was
     missing entirely. Each attribution here has been checked with `git tag --contains` against the commit
     that made it.
+
+## 3.0.0
+
+*2026-09-20 — three breaking changes, and most installs feel only the first.*
+See [Upgrading to 3.0.0](upgrading-3.0.md).
+
+### Removed
+
+- **`osx-x64` is no longer a published platform.** Microsoft.ML.OnnxRuntime ships no native for it, so
+  the package installed and then failed the first time anything needed an embedding — `index_repo` and
+  `search_code` over stdio, and a server stuck at 503 over HTTP. An Intel Mac on 2.0.0 keeps working and
+  cannot update; the container image runs fully on one.
+
+### Changed
+
+- **`compose_task_prompt`'s `tokenBudget` now bounds the code**, with remembered conventions additive on
+  their own 600-token budget. It used to be split ~70/30, which ran the underlying engine at 70% of the
+  caller's number and cost the composer 0.15 of key-point recall against that engine. The same request
+  now returns more code, and the rendered prompt is larger than the number you passed.
+- **Every sqlite-vec index rebuilds once**, automatically, on first use. Derived data only: remembered
+  facts and savings statistics are untouched.
+- **Ranking weights a query term by how rare it is among the files being ranked.** Measured: mean
+  compression rose from 56.2% to 59.5% at Balanced and 32.3% to 38.5% at Conservative. **Mean recall did
+  not move outside its own run-to-run noise, so no recall gain is claimed** — see the error bar on
+  [Benchmarks](benchmarks.md).
+
+### Security
+
+- **The `vec0` native is upstream's own release, verified by SHA-256 and loaded by absolute path.** The
+  package previously used carried binaries matching no upstream release asset of any version.
+- **Every build restores exactly the dependency graph CI tested.** Each project commits a lock file, and
+  CI, the release and the image build all restore in locked mode.
 
 ## 2.0.0 — 2026-09-10 · Audit remediation
 
@@ -15,7 +47,7 @@ not ready**, including three critical defects that produced silently wrong outpu
 release is the remediation of that audit: 162 findings closed, 23 refuted on re-examination, and four
 deferred with their reasons stated.
 
-**Start here if you are upgrading:** [Upgrading to 2.0.0](upgrading-2.0.md) lists the one-time steps.
+**Start here if you are upgrading:** [Upgrading to 3.0.0](upgrading-3.0.md) lists the one-time steps. Coming from 1.x, read [Upgrading to 2.0.0](upgrading-2.0.md) first — both index rebuilds apply.
 
 **The three criticals — all of them produced output that looked correct:**
 

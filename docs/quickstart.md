@@ -49,7 +49,7 @@ as "that code does not exist".
 
 !!! note "Upgrading from 1.x?"
     Your existing index is discarded and rebuilt once, on first start. See
-    [Upgrading to 2.0.0](upgrading-2.0.md).
+    [Upgrading to 2.0.0](upgrading-2.0.md), then [Upgrading to 3.0.0](upgrading-3.0.md).
 
 ## 5. Ask a grounded question
 

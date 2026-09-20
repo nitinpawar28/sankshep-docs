@@ -13,14 +13,16 @@ packaged fails cleanly at install rather than at runtime:
 
 !!! warning "Intel Macs (`osx-x64`): search and indexing cannot work"
 
-    `sankshep.osx-x64` was published for 2.0.0 and should not have been. **Microsoft.ML.OnnxRuntime ships
-    no `osx-x64` native**, so the package installs, runs and answers `--version` — and then fails the
-    first time anything needs an embedding. Over stdio that means `index_repo` and `search_code` fail
-    while the other six tools work; over HTTP the server never becomes ready and answers 503 for the life
-    of the process. This is the one platform where "fails cleanly at install" was never true.
+    **`sankshep.osx-x64` is not published from 3.0.0 onwards.** It existed up to 2.0.0 and should not
+    have: **Microsoft.ML.OnnxRuntime ships no `osx-x64` native**, so the package installed, ran and
+    answered `--version` — and then failed the first time anything needed an embedding. Over stdio
+    `index_repo` and `search_code` failed while the other six tools worked; over HTTP the server never
+    became ready and answered 503 for the life of the process. It is the one platform where "fails
+    cleanly at install" was never true, which is why withdrawing it is breaking rather than a cleanup.
 
-    The 2.0.0 packages stay on nuget.org, because published packages are immutable. **The container image
-    runs fully on an Intel Mac**, since it is published for `linux/amd64` — see
+    **An Intel Mac on 2.0.0 keeps working exactly as it did** — those packages stay on nuget.org,
+    because published packages are immutable — but cannot install or update to 3.0.0 or later. **The
+    container image runs fully on an Intel Mac**, since it is published for `linux/amd64` — see
     [Deployment](deployment.md). Apple Silicon is unaffected: use `osx-arm64`.
 
 ```bash
@@ -39,7 +41,7 @@ includes both. Update with `dotnet tool update -g sankshep`.
 
     ```bash
     dnx sankshep serve --repo .          # latest
-    dnx sankshep@2.0.0 serve --repo .    # pinned version
+    dnx sankshep@3.0.0 serve --repo .    # pinned version
     ```
 
 ## Point your MCP client at it

@@ -45,7 +45,7 @@ docker run --rm -p 8080:8080 \
   -v sankshep-state:/state \
   -v sankshep-models:/models \
   -e SANKSHEP_API_KEYS=change-me \
-  ghcr.io/nitinpawar28/sankshep:v2.0.0
+  ghcr.io/nitinpawar28/sankshep:v3.0.0
 ```
 
 !!! note "Why a version and not `:latest`"

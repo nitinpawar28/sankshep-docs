@@ -2,7 +2,9 @@
 
 Every tool Sankshep exposes over MCP, with its arguments and a **real** request/response captured from a
 running v2.0.0 server. Long absolute paths in the captures are shortened to `C:\...\sample-repo`; nothing
-else is edited.
+else is edited. One contract changed in 3.0.0 and the capture below predates it: `compose_task_prompt`'s
+`tokenBudget` now bounds the code rather than being split with the conventions section, so the same
+request returns more code than the capture shows.
 
 Paths are **relative to the repo the server was started against** (`serve --repo <root>`).
 
@@ -382,7 +384,7 @@ conventions (`recall`). It returns a **prompt to act on — never the answer its
 |---|---|---|---|
 | `task` | string | — | The coding task. |
 | `paths` | string | — | Comma- or newline-separated paths to draw code from. |
-| `tokenBudget` | string | `4000` | Split ~70/30 between code and conventions. |
+| `tokenBudget` | string | `4000` | Bounds the **code**. Conventions are additive (600 tokens), so the prompt is larger than this. Changed in 3.0.0. |
 
 ```jsonc
 // request (prompts/get)
