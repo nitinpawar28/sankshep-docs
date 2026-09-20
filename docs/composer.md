@@ -97,7 +97,7 @@ flowchart LR
 
 ## Anatomy of a composed prompt
 
-Four labelled sections, assembled deterministically under a token budget split between code and
+Four labelled sections, assembled deterministically under a token budget that bounds the code, with
 conventions:
 
 - **Task** — your one-line intent, verbatim.
@@ -151,7 +151,11 @@ auditable.
     `compose_task_prompt` takes **`task`** (your one-line intent) and **`paths`** — the file or directory
     paths to draw code context from, comma- or newline-separated. `paths` is **required**; with none
     supplied there is no code to minimize and the Relevant code section comes back empty. **`tokenBudget`**
-    is optional and defaults to **4000**, split between code and conventions.
+    is optional and defaults to **4000**, and **bounds the code**. Remembered conventions are additive,
+    with their own budget of 600 tokens, so the prompt you get back is larger than the number you
+    passed — by the conventions section plus the template's own text. Changed in 3.0.0; before that the
+    budget was split ~70/30, which cost the composer 0.15 of key-point recall against `get_context` at
+    the same number.
 
 - **As Sankshep's MCP prompt:** clients that surface prompts expose `compose_task_prompt` as a
   slash-command — supply the task and the paths, get the grounded prompt.

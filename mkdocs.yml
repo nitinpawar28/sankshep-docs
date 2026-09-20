@@ -75,6 +75,7 @@ nav:
       - How it works: how-it-works.md
       - FAQ & gotchas: faq.md
   - Operate:
+      - Upgrading to 3.0.0: upgrading-3.0.md
       - Upgrading to 2.0.0: upgrading-2.0.md
       - Deployment: deployment.md
       - Security & privacy: security.md
