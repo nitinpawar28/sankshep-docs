@@ -130,8 +130,6 @@ address, because the bearer token would then cross the network in the clear. It 
 refusal: terminating TLS in front of Sankshep is a correct deployment it cannot see from the inside.
 
 ## Development / eval harness
-<<<NEW
-## Development / eval harness
 
 These are read by the benchmark eval harness (`Sankshep.Evals`), **not** the MCP server: `SANKSHEP_SERVER_EXE`
 (path to the server binary under test) and the judge credentials `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`
