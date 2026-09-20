@@ -7,9 +7,21 @@ containers (see [Deployment](deployment.md)).
 ## Install the tool
 
 The RID-specific package bundles the native assets (tree-sitter, sqlite-vec, ONNX Runtime) for your
-platform. Supported platforms are **win-x64**, **linux-x64**, **linux-arm64**, **osx-x64**, and
-**osx-arm64**; `win-arm64` is not currently packaged (no sqlite-vec native for it), and unsupported
-platforms fail cleanly at install rather than at runtime:
+platform. Supported platforms are **win-x64**, **linux-x64**, **linux-arm64** and **osx-arm64**;
+`win-arm64` is not packaged, because there is no sqlite-vec native for it, and a platform that is not
+packaged fails cleanly at install rather than at runtime:
+
+!!! warning "Intel Macs (`osx-x64`): search and indexing cannot work"
+
+    `sankshep.osx-x64` was published for 2.0.0 and should not have been. **Microsoft.ML.OnnxRuntime ships
+    no `osx-x64` native**, so the package installs, runs and answers `--version` — and then fails the
+    first time anything needs an embedding. Over stdio that means `index_repo` and `search_code` fail
+    while the other six tools work; over HTTP the server never becomes ready and answers 503 for the life
+    of the process. This is the one platform where "fails cleanly at install" was never true.
+
+    The 2.0.0 packages stay on nuget.org, because published packages are immutable. **The container image
+    runs fully on an Intel Mac**, since it is published for `linux/amd64` — see
+    [Deployment](deployment.md). Apple Silicon is unaffected: use `osx-arm64`.
 
 ```bash
 dotnet tool install -g sankshep

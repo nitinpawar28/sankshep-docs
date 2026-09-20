@@ -101,7 +101,27 @@ markup (HTML/templates) relies more on retrieval than minimization.
 ## Reproduce it yourself
 
 The numbers above come from the eval harness running a question set through the real server and an LLM
-judge — regenerate them on any repo:
+judge.
+
+!!! danger "The judge is a third-party API, and it receives your code"
+
+    This is the one part of Sankshep that sends anything anywhere, and it is a **maintainer tool**: the
+    shipped `sankshep` server does not reference it, and still makes zero outbound calls of its own.
+
+    For every question the harness POSTs **the delivered context**, and for the optional
+    composed-vs-naive comparison **the whole raw text of every file** listed in that question's `paths`,
+    exactly as it is on disk. Nothing is redacted, sampled or truncated first. It goes to
+    `https://api.anthropic.com/v1/messages` under `--judge anthropic`, or
+    `https://api.openai.com/v1/chat/completions` under `--judge openai`.
+
+    **So point it only at a repository you are allowed to send to a third party.**
+
+    For a **zero-egress run**, use `--judge openai` with `OPENAI_BASE_URL` pointed at a local
+    OpenAI-compatible server (llama.cpp, Ollama, vLLM, LM Studio) — the client speaks plain Chat
+    Completions, so nothing else changes. Or `--judge offline`, which needs no key and no network: it
+    proves the harness runs end to end and measures nothing about quality, and says so in its own output.
+
+Regenerate them on any repo:
 
 - **Live, per-tool:** `token_report` returns cumulative compression on your own repo. No dollar figure:
   Sankshep does not know your model or your negotiated rate.
