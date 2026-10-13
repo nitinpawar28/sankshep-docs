@@ -44,6 +44,12 @@ layer** (request-time, dynamic).
 A Copilot `.prompt.md` can *call* Sankshep's grounding tools via its `tools:` front-matter, and Copilot
 merges the result into its context. Sankshep does **not** reinvent the template/slash-command layer.
 
+!!! note "Prompt files in VS Code, as of 2026-10-08"
+    VS Code now marks prompt files as **deprecated for Agent Host sessions**, which do not load them. They
+    still work with the Local agent, which VS Code says it will remove in a future release, and VS Code
+    offers a migration that converts prompt files into agent skills. In a prompt file's `tools:` list, VS
+    Code names all of one MCP server's tools as `<server name>/*`, which for Sankshep is `sankshep/*`.
+
 ## The naive flow it replaces
 
 Without grounding, an assistant discovers the codebase by *spending roundtrips* — asking for files,
@@ -85,7 +91,7 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    PF[".github/prompts/feature.prompt.md<br/>front-matter: tools: [sankshep]"]
+    PF[".github/prompts/feature.prompt.md<br/>front-matter: tools: ['sankshep/*']"]
     CP["Copilot Chat (template layer)"]
     SK["Sankshep grounding: get_context + recall"]
     MO["Model acts on template + grounding"]
@@ -108,7 +114,8 @@ conventions:
   your facts are actually under, so a mis-filed rule is visible rather than silently ignored.
 - **Constraints** — guardrails (stay within the shown code, don't add dependencies, follow conventions).
 
-**Worked example — "add rate limiting to the login endpoint":**
+**Worked example — "add rate limiting to the login endpoint"** (illustrative, not a capture: the repository
+is invented and the excerpts are abridged; the [tool reference](tool-reference.md) shows a captured prompt):
 
 ```text
 # Task
@@ -149,8 +156,11 @@ auditable.
 
 !!! note "Arguments"
     `compose_task_prompt` takes **`task`** (your one-line intent) and **`paths`** — the file or directory
-    paths to draw code context from, comma- or newline-separated. `paths` is **required**; with none
-    supplied there is no code to minimize and the Relevant code section comes back empty. **`tokenBudget`**
+    paths to draw code context from, comma- or newline-separated. `paths` is **required**, and
+    `compose_task_prompt` never returns a prompt with an empty code section: with no paths supplied it
+    returns an error saying so, and when nothing under them can be delivered it returns an error naming the
+    cause — nothing matched, no supported source file, or a `tokenBudget` too small to admit any code.
+    **`tokenBudget`**
     is optional and defaults to **4000**, and **bounds the code**. Remembered conventions are additive,
     with their own budget of 600 tokens, so the prompt you get back is larger than the number you
     passed — by the conventions section plus the template's own text. Changed in 3.0.0; before that the

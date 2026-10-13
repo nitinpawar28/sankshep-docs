@@ -13,7 +13,7 @@ The **only** outbound network activity is:
 | Activity | When | What is sent |
 |---|---|---|
 | Embedding-model download | First `index_repo`/`search_code`, unless side-loaded | A checksum-verified request for the public model files — **no repo content**. Suppress with `SANKSHEP_MODEL_OFFLINE=1` + `SANKSHEP_MODEL_DIR`. |
-| Telemetry export | **Only** if you set `SANKSHEP_OTLP_ENDPOINT` | Counts and a low-cardinality repo tag (the folder name) — **never** file paths, queries, or code. To a collector **you** run. |
+| Telemetry export | **Only** if you set `SANKSHEP_OTLP_ENDPOINT` | Counts and histograms with a low-cardinality repo tag (the folder name), plus ASP.NET Core's own HTTP server metrics under `--http` — **never** file paths, queries, or code. To a collector **you** run. |
 
 There is **no telemetry by default** and no dollar/billing phone-home — Sankshep is never told which model you
 use or what you pay (ADR-0011, ADR-0017). No repository code or content ever leaves the machine; the model
@@ -124,8 +124,7 @@ contains can enforce either. The Helm chart sets `readOnlyRootFilesystem: true` 
 
 The image pins **both** its base images by digest, and it carries a full SLSA provenance statement and an
 SPDX SBOM, which `docker buildx imagetools inspect` will show you. The embedding-model download is SHA-256
-verified and fail-closed. For the strictest posture, pin the image by digest and pre-bake or side-load the
-model.
+verified and fail-closed. For the strictest posture, pin the image by digest and side-load the model.
 
 ## Reporting a vulnerability
 

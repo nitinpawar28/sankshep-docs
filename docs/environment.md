@@ -48,7 +48,7 @@ ignores them.
 
 | Variable | Purpose | Default |
 |---|---|---|
-| `SANKSHEP_OTLP_ENDPOINT` | OTLP endpoint to **push** metrics to (a collector **you** run). Counts + a low-cardinality repo-folder tag only — never code, paths, or queries. | unset (no outbound) |
+| `SANKSHEP_OTLP_ENDPOINT` | OTLP endpoint to **push** metrics to (a collector **you** run). Counts and histograms tagged with the tool name and a low-cardinality repo-folder name — never code, paths, or queries. Under `--http`, ASP.NET Core's own HTTP server metrics are pushed with them. | unset (no outbound) |
 | `SANKSHEP_PROMETHEUS` | `1` serves a `/metrics` **scrape** endpoint (inbound/pull, for your Prometheus). | off |
 | `SANKSHEP_FLEET_TEAM` · `SANKSHEP_FLEET_INSTANCE` | Optional labels (`sankshep.team`, `service.instance.id`) added to exported metrics. | unset |
 

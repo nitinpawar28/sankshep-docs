@@ -49,9 +49,29 @@ includes both. Update with `dotnet tool update -g sankshep`.
 Sankshep runs as a subprocess of your MCP client; don't run it standalone in a terminal. Configure the
 client to launch `sankshep serve --repo <your-repo>`.
 
-=== "VS Code (Copilot Chat, Agent mode)"
+=== "VS Code (Copilot Chat)"
 
-    Create `.vscode/mcp.json` in your workspace:
+    Create `.mcp.json` at the root of your workspace. This is the **portable** format, with servers under
+    a top-level `mcpServers` key: VS Code prefers it for new servers, and other MCP clients read the same
+    file — Claude Code among them.
+
+    ```json
+    {
+      "mcpServers": {
+        "sankshep": {
+          "command": "sankshep",
+          "args": ["serve", "--repo", "."]
+        }
+      }
+    }
+    ```
+
+    VS Code starts a stdio server in the workspace folder, so `.` is the repository you opened. (The
+    portable file passes `.` rather than VS Code's `${workspaceFolder}`, which Claude Code would pass to
+    the server unexpanded.)
+
+    The older `.vscode/mcp.json` form, with servers under `servers`, still works; VS Code now lists it as
+    deprecated:
 
     ```json
     {
@@ -64,7 +84,8 @@ client to launch `sankshep serve --repo <your-repo>`.
     }
     ```
 
-    MCP tools only fire in **Agent mode** — pick it in the Chat view, not "Ask".
+    MCP tools only fire when the chat is running an agent: in the chat input, select **Agent** from the
+    agent picker, not Ask.
 
 === "Claude Code"
 
@@ -72,6 +93,16 @@ client to launch `sankshep serve --repo <your-repo>`.
     claude mcp add sankshep -- sankshep serve --repo .
     ```
 
+    That adds the server at Claude Code's default **local** scope: it is stored in your own
+    `~/.claude.json`, for this project only. To share it with everyone who works on the repository, add it
+    at **project** scope instead, which writes it to a `.mcp.json` at the project root for you to commit —
+    the same portable file the VS Code tab shows:
+
+    ```bash
+    claude mcp add --scope project sankshep -- sankshep serve --repo .
+    ```
+
+    In an interactive session, Claude Code asks you to approve a project-scoped server before using it.
     Sankshep's tools and its `compose_task_prompt` slash-command then appear in the session.
 
 === "Claude Desktop / Cursor"

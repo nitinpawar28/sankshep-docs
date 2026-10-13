@@ -60,11 +60,26 @@ public class Calculator
 ```
 
 Read the header as: `original -> delivered (% smaller)` is the compression of the files actually delivered.
-Two more lines appear when they apply — a `Searched N tokens` line when the semantic index was consulted,
-and a `WITHHELD` line naming the files that did not fit. `Searched` is context looked at, **not** a saving.
+The other lines appear only when they apply:
+
+- `Searched N tokens` appears whenever the files scanned under `paths` hold more than the files delivered,
+  because ranking picked a subset. It appears with or without the semantic index, so it is no sign that the
+  index was consulted. `Searched` is context looked at, **not** a saving.
+- `NOTE: <file> was TRUNCATED to fit tokenBudget` names the one file that was cut to fill what was left.
+- `WITHHELD, did not fit tokenBudget:` names at most five files, then `(+N more)`. It is not a complete
+  list: files are tried in rank order and the trying stops soon after the budget is full, so files ranked
+  further down were never tried, and neither this line nor the `chunk(s) withheld` count includes them.
+- `WARNING:` lines name a path that matched nothing, a file that could not be read, or a file that was
+  requested but not included, with the reason.
+
 On very small inputs the locator header can make a file *larger*; that is reported honestly, not hidden.
 
-`tokenBudget` is a ceiling on the **whole response, the header included** — not on the code alone.
+`tokenBudget` covers the code **and the header's fixed lines** — the frame, the accounting line, `Searched`,
+the chunk count and `Missing something?` are paid for inside it — so slightly less code comes back than the
+number alone suggests. The `WARNING`, `NOTE` and `WITHHELD` lines are **not** paid for inside it, and nor
+are the blank lines between files: they are added on top, so a call that fills its budget comes back over
+it, in the region of 120 to 150 tokens when those lines name withheld or truncated files. Leave that
+headroom if you size a context window against `tokenBudget`.
 
 An **empty** delivery returns **`isError: true`**, never a silent 0-token "success". Captured verbatim with
 `tokenBudget: 150` against a large tree:
@@ -139,6 +154,11 @@ This is NOT evidence that the code does not exist. Run index_repo with path "." 
 resolve against the served --repo root, C:\...\sample-repo), then retry. Only index_repo discovers new
 files; verify-on-read and SANKSHEP_WATCH refresh already-indexed files only.
 ```
+
+The last sentence of that message understates `SANKSHEP_WATCH`. With the watcher on, each burst of file
+changes, once it settles, runs an incremental index over the served root, and that picks up new files too.
+Verify-on-read, which `search_code` runs before answering, is the part that refreshes only files already in
+the index.
 
 If it returns nothing right after a successful `index_repo`, see
 [Troubleshooting → search returns nothing after indexing](troubleshooting.md#index-built-but-search-empty).

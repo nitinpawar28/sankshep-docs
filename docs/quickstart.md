@@ -14,21 +14,25 @@ For containers, Windows Service, systemd, air-gap, see [Deployment](deployment.m
 ## 2. Connect your MCP client
 
 Point your client at the `sankshep` command in **stdio** mode. Full per-client configs are on
-[Install](install.md); the VS Code shape:
+[Install](install.md); the shape VS Code now prefers is a `.mcp.json` at the workspace root, which Claude
+Code reads too:
 
 ```jsonc
-// .vscode/mcp.json  (or your user mcp.json)
-{ "servers": { "sankshep": { "command": "sankshep", "args": ["serve", "--repo", "${workspaceFolder}"] } } }
+// .mcp.json  (at the workspace root)
+{ "mcpServers": { "sankshep": { "command": "sankshep", "args": ["serve", "--repo", "."] } } }
 ```
 
-`--repo` is the root every relative path resolves against. Reload the window after editing.
+`--repo` is the root every relative path resolves against; VS Code starts the server in the workspace
+folder, so `.` is the repository you opened. The older `.vscode/mcp.json` form, keyed `servers`, still
+works — see [Install](install.md). Reload the window after editing.
 
-## 3. Confirm the tools are available — **Agent mode, not Ask**
+## 3. Confirm the tools are available — **select Agent, not Ask**
 
-MCP tools only fire when the client is in an **agent/tool-using** mode. In VS Code that's Copilot Chat's
-**Agent** mode (not "Ask"). Ask the model to *"list the sankshep tools"* — you should see `get_context`,
-`search_code`, `index_repo`, `summarize_repo`, `remember`, `recall`, `export_decisions`, `token_report`, and
-the `compose_task_prompt` prompt. If not, see [Troubleshooting](troubleshooting.md).
+MCP tools only fire when the client is in an **agent/tool-using** mode. In VS Code, select **Agent** from
+the agent picker in the chat input (not Ask). Then ask the model to *"list the sankshep tools"* — you
+should see `get_context`, `search_code`, `index_repo`, `summarize_repo`, `remember`, `recall`,
+`export_decisions`, `token_report`, and the `compose_task_prompt` prompt. If not, see
+[Troubleshooting](troubleshooting.md).
 
 ## 4. Build the index (for semantic search)
 
@@ -53,7 +57,7 @@ as "that code does not exist".
 
 ## 5. Ask a grounded question
 
-In Agent mode, let the model call `get_context` for you:
+With **Agent** selected, let the model call `get_context` for you:
 
 > Use `get_context` on `src/` to explain how orders are validated, and cite the files.
 

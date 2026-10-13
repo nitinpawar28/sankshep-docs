@@ -21,8 +21,8 @@ answer. Sankshep sends the model the *small, relevant slice* instead: it retriev
 matter and AST-minimizes them (strips comments, collapses non-target method bodies), then reports how
 many tokens it saved.
 
-The full surface — ten MCP primitives (eight tools, one prompt and one resource), each documented with real
-captured I/O in the [tool reference](tool-reference.md):
+The full surface — ten MCP primitives (eight tools, one prompt and one resource), documented in the
+[tool reference](tool-reference.md), with real captured I/O for every tool and the prompt:
 
 <div class="grid cards" markdown>
 

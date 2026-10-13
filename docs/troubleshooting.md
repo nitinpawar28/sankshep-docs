@@ -46,9 +46,10 @@ written by an older build is pruned and rebuilt on first use.
 
 On v2.0.0 and later, if `index_repo` reports chunks and `search_code` returns nothing:
 
-- **Re-run `index_repo`.** Only `index_repo` discovers new files — the watcher and verify-on-read refresh
-  files that are *already* indexed, so a file added since the last index is invisible to search until you
-  run it again. This is the common cause.
+- **Re-run `index_repo`.** Unless `SANKSHEP_WATCH=1` is set, only `index_repo` discovers new files —
+  verify-on-read refreshes files that are *already* indexed, so a file added since the last index is
+  invisible to search until you run it again. This is the common cause. (With the watcher on, a new file
+  is picked up once the burst of changes that created it settles.)
 - Confirm the path you indexed actually contains supported source — any language on the
   [Supported languages](usage.md#supported-languages) table, plus `.docx`/`.pdf` documents.
 - Delete the repo's `.sankshep/index.db` (and its `-wal`/`-shm` siblings) and re-index. The index is

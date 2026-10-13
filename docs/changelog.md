@@ -40,7 +40,7 @@ See [Upgrading to 3.0.0](upgrading-3.0.md).
 - **Every build restores exactly the dependency graph CI tested.** Each project commits a lock file, and
   CI, the release and the image build all restore in locked mode.
 
-## 2.0.0 — 2026-09-10 · Audit remediation
+## 2.0.0 — 2026-09-11 · Audit remediation
 
 A production-readiness audit of 1.8.0 found **189 issues across thirteen dimensions and scored it 45/100 —
 not ready**, including three critical defects that produced silently wrong output on the default path. This
@@ -133,7 +133,7 @@ See [Security & privacy](security.md).
   delivered; the amount *searched* is disclosed but never counted as a saving. *(Previously listed under
   1.6.0. The commit is in v1.3.0.)*
 
-## 1.2.0 — 2026-07-16 · `get_context` path anchoring
+## 1.2.0 — 2026-07-15 · `get_context` path anchoring
 
 - **`get_context` resolves relative `paths` against the served `--repo` root**, not the client's working
   directory — previously a relative path could silently target the wrong tree. *(Previously listed under
