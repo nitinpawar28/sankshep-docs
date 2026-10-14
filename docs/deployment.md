@@ -158,11 +158,11 @@ RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 WantedBy=multi-user.target
 ```
 
-The unit above is the one 4.0.0 ships, directive for directive; its own comments, which point at the project's
-internal records, are left out. Earlier versions of this page carried five further sandbox directives that were never in
-the shipped unit - `ProtectKernelTunables`, `ProtectKernelModules`, `ProtectControlGroups`, `RestrictSUIDSGID` and
-`LockPersonality`. They are standard systemd hardening and nothing in Sankshep needs them removed, but they have not been
-tested with the shipped unit, which is why they are not reproduced here.
+The unit above is the one 4.0.0 ships, directive for directive; its comments are left out. Earlier versions of this page
+carried five further sandbox directives that were never in the shipped unit - `ProtectKernelTunables`,
+`ProtectKernelModules`, `ProtectControlGroups`, `RestrictSUIDSGID` and `LockPersonality`. They are standard systemd
+hardening and nothing in Sankshep needs them removed, but, like the unit itself (see the caveat at the top of this page),
+they have not been tested under systemd, which is why they are not reproduced here.
 
 ## Kubernetes
 

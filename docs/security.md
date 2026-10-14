@@ -110,11 +110,9 @@ were refuted on re-examination, and **four shipped deferred** rather than quietl
 (NuGet lock files), two awaiting a decision rather than a fix (the sqlite-vec native's provenance, and a
 licensing question), and one needing the maintainer's hands (rotating a key out of a local benchmark
 script). As of 4.0.0 all four are closed — the lock files and the native's provenance in 3.0.0, the key
-rotated on 2026-09-20, and the licensing question settled on 2026-10-01 by documenting what the licence
-permits rather than changing it — so the count stands at **166 closed, 23 refuted, none deferred**. The
-deferrals are kept here because a release that listed only its closures would be making the same kind of
-claim this remediation spent itself removing. A further adversarial re-read of the code on 2026-10-01, also
-maintainer-run, is where 4.0.0's contract changes came from.
+rotated, and the licence left unchanged with its terms now documented on the home page — so the count
+stands at **166 closed, 23 refuted, none deferred**. The deferrals are kept here because a release that
+listed only its closures would be making the same kind of claim this remediation spent itself removing.
 
 That audit is also the reason this page says "maintainer-run" instead of "independent": it is exactly the
 kind of claim a self-review is worst at checking about itself.
