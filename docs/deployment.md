@@ -131,72 +131,21 @@ service beyond loopback, set `ASPNETCORE_URLS`, an authentication mode and `SANK
 ```ini
 [Unit]
 Description=Sankshep MCP Server
-# F134 — network-online.target rather than network.target. network.target says only that the networking
-# stack is being brought up; it makes no promise that an address is configured. Sankshep binds whatever
-# ASPNETCORE_URLS names — a specific address, not necessarily a wildcard — and on a first start with no
-# side-loaded model it fetches one over the network. Wants= keeps this a preference, not a requirement: a
-# host with no wait-online service enabled reaches the target immediately and the unit starts as before.
 Wants=network-online.target
 After=network-online.target
 
 [Service]
-# R-08 — this was Type=notify, and the claim beside it that readiness was signalled via sd_notify was
-# false. AddSystemd() installs SystemdLifetime, whose READY=1 fires from ApplicationStarted, i.e. once
-# every IHostedService.StartAsync has returned. ReadinessWarmupService opens with `await Task.Yield()`
-# precisely so StartAsync returns before its gate runs (ADR-0025), so the gate always finishes AFTER the
-# notify. systemd therefore called the unit `active` while /health/ready was still answering 503 —
-# including in the permanent-503 states ADR-0025 and ADR-0026 exist to make visible.
-#
-# Type=exec says only what is true: the process has been started. Readiness is /health/ready, and nothing
-# else should be read as a substitute for it.
-#
-# The honest alternative is a lifetime that owns READY=1 and sends it when the readiness state flips,
-# which also needs TimeoutStartSec=infinity here and `systemctl start --no-block` in the runbook. That is
-# worth doing if something ever orders `After=sankshep.service` on readiness; it is not worth shipping
-# untested, and there is no Linux host here to test it on.
 Type=exec
 ExecStart=/opt/sankshep/sankshep --http --repo /srv/repo
 User=sankshep
-# F159 — the state directory holds facts.db (authored memory) and index.db (plaintext code chunks).
-# Sankshep creates its own state directory 0700, but this runbook has the operator root-create
-# /var/lib/sankshep/state first, so that directory keeps the mode mkdir gave it and only the umask
-# decides what SQLite's files get. 0077 makes them 0600 instead of 0644.
 UMask=0077
 Environment=SANKSHEP_MODEL_DIR=/var/lib/sankshep/models
 Environment=SANKSHEP_STATE_DIR=/var/lib/sankshep/state
 Restart=on-failure
-# F062 — bound the restarts. `Restart=on-failure` on its own retries every 100ms for ever, so a fault
-# that recurs on every start (an unusable index is the one ADR-0026 is written about) becomes a crash
-# loop that fills the journal while `systemctl status` keeps saying "activating". Five seconds between
-# attempts, and at most three inside five minutes before systemd gives up and leaves it failed, which is
-# the state an operator can actually see.
 RestartSec=5
 StartLimitIntervalSec=300
 StartLimitBurst=3
 
-# F134 — the sandbox. This process parses untrusted repository content, PDFs and DOCX (SECURITY.md), and
-# an operator installs this unit as root. Without these directives it could write anywhere the `sankshep`
-# user can reach and could gain privileges through any setuid binary on the host. The container image has
-# had a non-root user and a read-only root filesystem since v1.x; these are the systemd equivalents, and
-# the unit shipped with none of them.
-#
-# ProtectSystem=strict makes the whole filesystem read-only, so every directory the server writes has to
-# be granted back explicitly. StateDirectory=sankshep is what does that: systemd creates
-# /var/lib/sankshep, chowns it to User= and makes it writable — which covers BOTH directories the
-# Environment= lines above name, and is why those two lines and this one must be kept in step (there is a
-# test that checks exactly that coupling). PrivateTmp=true gives the process its own /tmp, which is where
-# the ONNX runtime unpacks its native libraries. Nothing else is written at runtime.
-#
-# ReadWritePaths repeats /var/lib/sankshep on purpose, so the grant is visible to somebody reading the
-# unit rather than implied by StateDirectory. The leading `-` means a missing path is ignored instead of
-# failing the mount namespace before StateDirectory has created it.
-#
-# If you point SANKSHEP_STATE_DIR or SANKSHEP_MODEL_DIR somewhere else, add that path here too — under
-# ProtectSystem=strict it is read-only until you do, and the server will refuse to start.
-#
-# Not verified against a live systemd: ADR-0019 records that this unit has never been loaded, and there
-# is no Linux host here to load it on. Every directive is one whose effect systemd.exec(5) states, and
-# whose failure mode is a loud refusal at startup rather than a silent change of behaviour.
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
@@ -208,6 +157,12 @@ RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 [Install]
 WantedBy=multi-user.target
 ```
+
+The unit above is the one 4.0.0 ships, directive for directive; its own comments, which point at the project's
+internal records, are left out. Earlier versions of this page carried five further sandbox directives that were never in
+the shipped unit - `ProtectKernelTunables`, `ProtectKernelModules`, `ProtectControlGroups`, `RestrictSUIDSGID` and
+`LockPersonality`. They are standard systemd hardening and nothing in Sankshep needs them removed, but they have not been
+tested with the shipped unit, which is why they are not reproduced here.
 
 ## Kubernetes
 

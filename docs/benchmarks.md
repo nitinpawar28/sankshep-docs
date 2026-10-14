@@ -11,8 +11,8 @@ not marketed**. Two things are quantified: how many tokens are saved, and whethe
     either direction.** 4.0.0 changed both halves of what this page measures. First, what `get_context`
     delivers when a call fills its budget: a file that does not fit now arrives as its relevant
     declarations instead of being truncated from the top or withheld whole, and the header now fits inside
-    `tokenBudget`, so such a call carries up to 116 fewer tokens of code — and on this set the packer was
-    budget-bound on 7 of the 8 questions at Balanced. Second, how compression is credited: a truncated
+    `tokenBudget`, so such a call carries up to 116 fewer tokens of code. Second, how compression is
+    credited: a truncated
     excerpt used to be credited with its whole file's original size, so budget-bound compression included
     source that was withheld; 4.0.0 credits only the source that came back. So even the deterministic
     compression column is not comparable with a 4.0.0 run. Which way the numbers move, and by how much, is
