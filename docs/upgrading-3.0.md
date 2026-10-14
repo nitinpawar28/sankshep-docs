@@ -31,7 +31,7 @@ repository and seconds on a small one.
 ## 2. Intel Macs cannot install or update to this release
 
 **Who it affects:** macOS on Intel hardware (`osx-x64`). Apple Silicon is unaffected.
-**What you do:** stay on 2.0.0, or run the container image.
+**What you do:** stay on 2.0.0, or run the container image over HTTP.
 
 `sankshep.osx-x64` is no longer published. It existed up to 2.0.0 and should not have:
 **Microsoft.ML.OnnxRuntime ships no `osx-x64` native**, so the package installed, ran, and answered
@@ -46,13 +46,12 @@ Withdrawing a platform people were partly using is a breaking change, which is w
 1. **Stay on 2.0.0.** Those packages remain on nuget.org — published packages are immutable — and behave
    exactly as they did. You keep the six tools that worked.
 2. **Use the container image**, which runs fully on an Intel Mac because it is published for
-   `linux/amd64`:
+   `linux/amd64`. The image serves the **HTTP transport**.
 
-    ```bash
-    docker run --rm -i -v "$PWD:/repo:ro" ghcr.io/nitinpawar28/sankshep:v3.0.0 serve --repo /repo
-    ```
-
-    See [Deployment](deployment.md) for the full configuration.
+    Running the image as a stdio server is **not supported**. Its entrypoint always starts the HTTP
+    transport, and anything after the image name in `docker run` is appended to that entrypoint rather
+    than replacing it, so `docker run -i ... serve --repo /repo` still selects the HTTP transport, not
+    stdio.
 
 ---
 
@@ -83,7 +82,9 @@ whole rendered prompt, and always has.
 ## What has not changed
 
 - **Tool names, arguments and result shapes** — apart from `compose_task_prompt`'s `tokenBudget` above.
-- **`get_context`'s `tokenBudget`**, which still bounds the whole response including its header.
+- **`get_context`'s `tokenBudget`**, which still covers the code and the header's fixed lines. It never
+  covered the header's `WARNING`, `NOTE` and `WITHHELD` lines, so a call that fills its budget can come
+  back over it; see the [tool reference](tool-reference.md#get_context).
 - **Environment variables**, the `.sankshep/` layout, and exit codes.
 - **Zero egress by default.** The server makes no outbound calls; that is asserted by tests on every
   build, and the only component that talks to a model provider is the maintainer-run eval harness, which

@@ -13,10 +13,14 @@ telemetry by default, no outbound network at rest.
       the benchmarks all exercise.
     - **HTTP and the container** are verified in CI: the image is built, run with a read-only repository
       mount, and driven over Streamable HTTP on every change — on **both** amd64 and arm64.
-    - **Kubernetes / Helm, the Windows Service, systemd and OAuth** are shipped and tested at the unit and
-      template level, but have **not been verified end to end on a real cluster, an elevated Windows
-      session, or against a live identity provider.** They are expected to work; nobody has watched them
-      work.
+    - **Kubernetes / Helm** is installed by CI into a throwaway kind (Kubernetes-in-Docker) cluster on
+      every change to the chart or to anything the image is built from: the pod has to become ready and
+      answer an authenticated MCP `initialize` through its Service. That run turns git-sync off and loads
+      no embedding model, so neither the sidecar syncing a repository nor the model volume holding a model
+      has been verified, and the chart has not been verified end to end on a production cluster.
+    - **The Windows Service, systemd and OAuth** are shipped and tested at the unit level, but have **not
+      been verified end to end in an elevated Windows session, under systemd, or against a live identity
+      provider.** They are expected to work; nobody has watched them work.
 
     This caveat is required by ADR-0019 and stays until that verification happens.
 
@@ -88,7 +92,7 @@ Run `--http` as a native service:
     **The index rebuilds and authored memory is not migrated.** Copy `facts.db` across by hand if you want
     to keep it — nothing copies it for you, because copying a file out of an attacker-controllable
     directory while running as `LocalSystem` is the defect the move exists to close.
-- **Linux:** a `systemd` unit (`Type=notify`, journald, restart-on-failure) — reproduced in full below,
+- **Linux:** a `systemd` unit (`Type=exec`, journald, restart-on-failure) — reproduced in full below,
   because the source repository is private and "the provided unit" was not something a reader could
   obtain.
 
@@ -104,7 +108,9 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-Type=notify
+# Type=exec, not Type=notify: under notify the server reports READY to systemd before its readiness
+# gate has finished, so "active" would claim more than is true. Readiness is GET /health/ready.
+Type=exec
 ExecStart=/usr/local/bin/sankshep --http --repo /srv/repo
 Environment=SANKSHEP_STATE_DIR=/var/lib/sankshep
 Environment=SANKSHEP_MODEL_DIR=/var/lib/sankshep/models
@@ -137,16 +143,16 @@ WantedBy=multi-user.target
 
 ## Kubernetes
 
-!!! note "The chart is not published yet"
+!!! note "The chart is not publicly available yet"
 
-    A Helm chart exists and is tested (`helm lint` plus rendered-template assertions on every change), but
-    it lives in the private source repository and **is not published to any registry**, so there is no
-    `helm install` command a reader can run. Ask for it, or use the container directly with the
-    `docker run` recipe above — the chart's value is the git-sync sidecar and the PVC wiring, not anything
-    the image cannot do.
+    A Helm chart exists and is tested (`helm lint` plus rendered-template assertions on every change, and
+    the kind install described at the top of this page). Releases from 3.0.0 on push it to GHCR as an OCI
+    chart, but that package **is not publicly pullable yet**, so there is still no `helm install` command
+    a reader can run. Ask for it, or use the container directly with the `docker run` recipe above — the
+    chart's value is the git-sync sidecar and the PVC wiring, not anything the image cannot do.
 
-    Publishing it as an OCI chart to GHCR is planned; until then, treating this section as documentation
-    of an artifact you can obtain would be wrong.
+    Until the chart package is public, treating this section as documentation of an artifact you can
+    obtain would be wrong.
 
 The chart deploys Sankshep as a single-repo-per-release workload with a **git-sync** sidecar keeping the
 repository fresh and read-only, plus model/state PVCs. Native sidecar on K8s ≥ 1.29, with a
@@ -195,11 +201,15 @@ of them, because the source is not distributed:
 1. **Mirror the packages into your own feed.** Pull `sankshep` and the RID-specific package for your
    platform from nuget.org into your internal NuGet feed, then
    `dotnet tool install -g sankshep --source <your-feed>`.
-2. **Mirror the image into your own registry** and pre-bake the model into a derived image. The Helm
-   chart's `image.repository` exists to be repointed at it.
+2. **Mirror the image into your own registry, unmodified.** The Helm chart's `image.repository` exists to
+   be repointed at it. Ship the model beside the image rather than inside it: mount a volume or host
+   directory holding `bge-small-en-v1.5/model.onnx` and `bge-small-en-v1.5/vocab.txt` at `/models`, the
+   image's `SANKSHEP_MODEL_DIR`, and set `SANKSHEP_MODEL_OFFLINE=1`. Do not build a derived image with
+   the model baked in: the licence, the `LICENSE` file at `/app/LICENSE` in the image, does not permit
+   derivative works of it.
 
 On the Helm chart, set `model.offline: true` (which sets `SANKSHEP_MODEL_OFFLINE=1`) alongside a
-pre-populated model PVC, or bake the model in and skip the PVC entirely.
+pre-populated model PVC.
 
 ## Authentication
 
@@ -226,4 +236,5 @@ export SANKSHEP_OTLP_ENDPOINT=http://otel-collector:4317
 ```
 
 It exports **counts and histograms only** — never code content or file paths (the only per-metric repo
-identifier is a folder name). Leave the endpoint unset for a fully local, zero-egress deployment.
+identifier is a folder name). Under `--http`, ASP.NET Core's own HTTP server metrics are exported with them.
+Leave the endpoint unset for a fully local, zero-egress deployment.

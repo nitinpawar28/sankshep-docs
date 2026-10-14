@@ -23,9 +23,10 @@ with `SANKSHEP_MODEL_OFFLINE=1` + `SANKSHEP_MODEL_DIR`.
 - Embeddings run on-device (ONNX Runtime); vector search is `sqlite-vec` with a pure-C# fallback.
 - Your code is embedded and searched on your own machine; only the small, relevant slice reaches the
   model.
-- Every telemetry / fleet feature is **opt-in**, exports **counts plus a low-cardinality repo tag (the
-  folder name) and optional operator-set labels** (never code, file paths, or queries), and targets a
-  **collector you control**. There is a test that asserts zero outbound until you opt in.
+- Every telemetry / fleet feature is **opt-in**, exports **counts and histograms with a low-cardinality
+  repo tag (the folder name) and optional operator-set labels** (never code, file paths, or queries), plus
+  ASP.NET Core's own HTTP server metrics under `--http`, and targets a **collector you control**. There is
+  a test that asserts zero outbound until you opt in.
 
 ## One binary, two transports
 
@@ -67,11 +68,13 @@ protocol adapter is confined to one project.
 - **local ONNX embeddings over a cloud API** — offline, private, no per-query network or cost.
 - **`sqlite-vec` over a vector database** — a single embedded file, no service to run, with a pure-C#
   brute-force fallback.
-- **working-tree-as-truth freshness** — the index tracks your working tree file by file: an optional
-  watcher, plus verify-on-read, which re-indexes changed files and prunes deleted ones on every search.
-  There is **no branch-aware re-index** — nothing reads git HEAD. Re-run `index_repo` after a branch
-  switch or anything else that adds files, because **only `index_repo` discovers new ones**; the watcher
-  and verify-on-read refresh files that are already indexed.
+- **working-tree-as-truth freshness** — the index tracks your working tree file by file: verify-on-read,
+  which re-indexes changed files and prunes deleted ones on every search, plus an optional watcher
+  (`SANKSHEP_WATCH=1`) that, once a burst of changes settles, runs an incremental index over the served
+  root, which picks up new files too. There is **no branch-aware re-index**: the index never reads git
+  HEAD (memory does, to tag each fact with the current branch). Without the watcher, re-run `index_repo`
+  after a branch switch or anything else that adds files, because verify-on-read refreshes only files that
+  are already indexed.
 - **evals drive the real server as a subprocess** — the benchmark harness treats the shipped binary as a
   black box over MCP, so what's measured is what ships.
 

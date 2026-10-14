@@ -295,7 +295,7 @@ flowchart LR
     Raw --> Retr --> Min --> Out
 ```
 
-- **Lever 1 — Retrieval:** semantic search sends the 4 relevant chunks instead of 40 whole files. This is where most of the practical benefit lives, but Sankshep does **not** report it as tokens saved — sending less is trivially "cheaper", so the number would be unbounded. Whether it picked the *right* 5 is what [recall](benchmarks.md) measures.
+- **Lever 1 — Retrieval:** semantic search sends the 4 relevant chunks instead of 40 whole files. This is where most of the practical benefit lives, but Sankshep does **not** report it as tokens saved — sending less is trivially "cheaper", so the number would be unbounded. Whether it picked the *right* 4 is what [recall](benchmarks.md) measures.
 - **Lever 2 — Minimization:** AST transforms strip comments and collapse non-target method bodies to signatures, shrinking what remains. This is what `token_report` reports, as **compression**: delivered tokens against the original size of the same files.
 
 **The token figures in this walkthrough are illustrative, not measured.** No run produced 8,400 or 1,900; they are round numbers chosen to show the shape of the two levers on a plausible four-file request, and the ~8,400 is a naive-send baseline — the four whole files you would have pasted yourself, which is the fair comparison. For figures that came out of a real run on a named codebase, with the judge's own error bar stated, see [Benchmarks](benchmarks.md): 139,841 tokens naive against 38,320 composed, a 72.6% reduction. It is *not* the same as the tokens Sankshep *searched*, which on a large repository can run to millions and is never treated as a baseline.

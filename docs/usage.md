@@ -43,15 +43,16 @@ only what it verifies.
 
 **Body collapse** replaces a method/function body that isn't relevant to your query with a
 `{ /* … body elided (N lines) */ }` marker, so it applies only to brace-bodied languages; Python and Ruby
-get comment-stripping and packing but keep their bodies. Files in **any other** language are still
-retrieved, ranked, and packed under your token budget — just at the **text level**, without parse-aware
-minimization.
+get comment-stripping and packing but keep their bodies. Files in **any other** language are **skipped**:
+`get_context` never picks them up from a directory, and a file you name explicitly is reported on the
+header's `WARNING: requested but NOT included` line, with the reason, instead of being returned.
+`index_repo` also indexes `.docx` and `.pdf` documents for `search_code`.
 
 !!! note "Minimization levels"
     `get_context` takes a `level` argument (see the [tool reference](tool-reference.md#get_context)).
     **Conservative** collapses nothing; **Balanced** (the default) keeps the method bodies relevant to your
-    query and collapses the rest; **Aggressive** collapses every non-relevant body plus expression-bodied
-    (`=>`) members and trims unused `using`s.
+    query and collapses the rest; **Aggressive** collapses every body, the ones relevant to your query
+    included, plus expression-bodied (`=>`) members, and trims unused `using`s.
 
 ## A typical flow
 

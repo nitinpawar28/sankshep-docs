@@ -18,9 +18,8 @@ Chunks used to be sized by line count (400 lines), while the embedding model rea
 and discards the rest. So a 400-line class was stored under a vector describing roughly its first thirty
 lines, and a search for something declared halfway down it returned nothing.
 
-Chunks are now sized by what the model can actually read, and anything still larger — including a file in a
-language Sankshep has no grammar for — is split into overlapping windows. That moved the chunker version,
-so an existing `index.db` is discarded and rebuilt.
+Chunks are now sized by what the model can actually read, and anything still larger is split into
+overlapping windows. That moved the chunker version, so an existing `index.db` is discarded and rebuilt.
 
 This is correct rather than merely convenient: **every vector in an existing index describes only the
 beginning of its chunk.** The index is derived data, so a rebuild is always safe. It takes minutes on a
@@ -152,8 +151,10 @@ to anyone watching a container restart loop. It is now **one line on stderr and 
 - **`recall` caps its result set at 50** and reports `matched` alongside `count`, plus `truncated`.
 - **`index_repo`'s `path` is optional** and defaults to the whole repo. Its message now describes the walk
   rather than the index's total, and it reports progress per file when the client sends a progress token.
-- **`get_context`'s `tokenBudget` is a ceiling on the whole response**, header included, and a file larger
-  than the budget is truncated rather than dropped whole.
+- **`get_context`'s `tokenBudget` covers the header's fixed lines as well as the code**, and a file larger
+  than the budget is truncated rather than dropped whole. The header's `WARNING`, `NOTE` and `WITHHELD`
+  lines are not covered, so a call that fills its budget can come back over it; see the
+  [tool reference](tool-reference.md#get_context).
 - **Raising the log level cannot print your code.** See [Environment variables](environment.md#logging).
 - **`appsettings.json` in a served repository is ignored** on both transports. If you were configuring
   Sankshep that way, move those settings to environment variables — but note that a repo-root

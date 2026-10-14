@@ -15,8 +15,9 @@ A real, **proprietary production C# service** (private) — 8 questions across i
 subsystem, **52 atomic, verified facts**, each read and checked against the cited method and then
 confirmed by an adversarial re-read that refused 12 of 64 candidates. Individual files range from ~750
 to ~37,000 tokens, so the set exercises both small files and a file far larger than a typical budget.
-Every token budget is about a quarter of what its own question's paths hold, so no question measures
-compression while saying nothing about retrieval.
+Seven of the eight token budgets are about a quarter of what their own question's paths hold; the eighth
+question's paths hold about 200,000 tokens and its budget is capped at 8,000, about 4%. So no question
+measures compression while saying nothing about retrieval.
 
 | Level | Mean recall | Mean compression |
 |---|---|---|
@@ -52,16 +53,18 @@ Per question (recall @ compression):
 
 ### How much the judge itself moves
 
-An LLM judge is not a ruler, so the set was run **five times against the same code**. The spread is the
-honest error bar on every recall figure above:
+An LLM judge is not a ruler, so the set was run **five times**: twice against one build, then three times
+after the ranking change described below. The spread among runs of the same code is the honest error bar on
+every recall figure above:
 
 | | Balanced mean recall |
 |---|---|
 | Before the ranking change | 0.703, 0.649 |
 | After it | 0.682, 0.661, 0.667 |
 
-**Every compression figure was identical across all five runs**, as it must be: compression is arithmetic
-on token counts and no judge is involved. So **a recall difference smaller than about 0.05 on this set is
+**Every compression figure was identical between runs of the same code** — both runs before the ranking
+change, and all three after it — as it must be: compression is arithmetic on token counts and no judge is
+involved. So **a recall difference smaller than about 0.05 on this set is
 not evidence of anything** — including any difference you might compute between two rows of the table
 above.
 
@@ -87,7 +90,8 @@ composer answers is what a budget costs.
 !!! warning "Stated honestly"
     - **About a third of these facts are not recovered at any level.** Conservative keeps every body and
       still scores 0.50. Against atomic implementation-detail facts at a budget of roughly a quarter of
-      each question's own corpus, the delivered context supports about two thirds of them at best. The
+      each question's own corpus (about 4% for the largest), the delivered context supports about two
+      thirds of them at best. The
       set was built to be hard on purpose, and this is what hard looks like.
     - **Aggressive is lossy by design.** It collapses the very bodies that hold the answers, so it is for
       maximum compression of structure and signatures — never point it at a "how does X work" question.
@@ -95,7 +99,7 @@ composer answers is what a budget costs.
       Conservative *and* Balanced; *broker HTTP transport* scores 0.50 at both. Nothing minimization does
       explains a fact that is missing when every body is kept — those facts were in files the ranker did
       not choose, or in the part of a chosen file the budget cut.
-    - **A file larger than the budget is truncated, not dropped.** Up to 2.0.0 it was dropped whole. It is
+    - **A file larger than the budget is truncated, not dropped.** Before 2.0.0 it was dropped whole. It is
       now truncated at a line boundary and the header says so. What is still true is that truncation is
       positional rather than query-aware.
     - **Doc-comments are stripped at Balanced**, so a fact living only in a `///` comment cannot survive
@@ -130,9 +134,10 @@ anything. Counting them would claim credit against a baseline nobody could have 
 repository that arithmetic will cheerfully assert it saved more tokens than the model can even accept.
 
 C#/.NET compresses especially well (verbose namespaces, attributes, XML docs, brace-heavy blocks);
-markup (HTML/templates) relies more on retrieval than minimization.
+markup (HTML, templates) is neither retrieved nor minimized — see
+[Supported languages](usage.md#supported-languages).
 
-## Reproduce it yourself
+## Reproducing the numbers {#reproduce-it-yourself}
 
 The numbers above come from the eval harness running a question set through the real server and an LLM
 judge.
@@ -155,13 +160,14 @@ judge.
     Completions, so nothing else changes. Or `--judge offline`, which needs no key and no network: it
     proves the harness runs end to end and measures nothing about quality, and says so in its own output.
 
-Regenerate them on any repo:
+What you can regenerate yourself, and what you cannot:
 
 - **Live, per-tool:** `token_report` returns cumulative compression on your own repo. No dollar figure:
   Sankshep does not know your model or your negotiated rate.
-- **Reproducible:** the eval harness takes a YAML of `{ id, query, paths, token_budget, key_points }` (facts
-  made **atomic** and verified against the cited code), drives the server over stdio, and emits a
-  recall-vs-compression table (plus a composed-vs-naive comparison) you can regenerate.
+- **The recall table:** the eval harness takes a YAML of `{ id, query, paths, token_budget, key_points }`
+  (facts made **atomic** and verified against the cited code), drives the server over stdio, and emits a
+  recall-vs-compression table (plus a composed-vs-naive comparison). It is **not distributed** — no NuGet
+  package or container image contains it — so today only the maintainer can run it.
 
 !!! note "Roundtrips"
     The composer's headline benefit — *fewer roundtrips* — is the hardest to quantify in a single-shot
