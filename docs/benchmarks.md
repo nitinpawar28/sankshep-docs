@@ -5,11 +5,25 @@ not marketed**. Two things are quantified: how many tokens are saved, and whethe
 
 ## Measured results
 
-!!! note "Measured on 2026-09-20, with `claude-opus-4-8` as the judge"
-    These replace a table that was measured at **v1.7.0** (2026-07-18) and sat here labelled *v1.8.0* —
-    wrong by a release — through two major versions. They are **not comparable to it**: that run used an
-    8-question set that lived in an untracked script and was never committed, so nobody, including its
-    author, could re-run exactly it. This set is committed, so a number can be argued with.
+!!! warning "Measured on 3.0.0 — not yet re-measured for 4.0.0"
+    Every figure on this page was measured on **2026-09-20 against the code released as 3.0.0**, with
+    `claude-opus-4-8` as the judge. **It is not a measurement of 4.0.0 and is not evidence about 4.0.0 in
+    either direction.** 4.0.0 changed both halves of what this page measures. First, what `get_context`
+    delivers when a call fills its budget: a file that does not fit now arrives as its relevant
+    declarations instead of being truncated from the top or withheld whole, and the header now fits inside
+    `tokenBudget`, so such a call carries up to 116 fewer tokens of code — and on this set the packer was
+    budget-bound on 7 of the 8 questions at Balanced. Second, how compression is credited: a truncated
+    excerpt used to be credited with its whole file's original size, so budget-bound compression included
+    source that was withheld; 4.0.0 credits only the source that came back. So even the deterministic
+    compression column is not comparable with a 4.0.0 run. Which way the numbers move, and by how much, is
+    not something to estimate in a table: this one is labelled, not adjusted, until it is re-measured
+    against the 4.0.0 tag. The same label applies to *Composed vs. naive* below, because the composer wraps
+    the same engine.
+
+    These figures replaced a table that was measured at **v1.7.0** (2026-07-18) and sat here labelled
+    *v1.8.0* — wrong by a release — through two major versions. They are **not comparable to it**: that run
+    used an 8-question set that lived in an untracked script and was never committed, so nobody, including
+    its author, could re-run exactly it. This set is committed, so a number can be argued with.
 
 A real, **proprietary production C# service** (private) — 8 questions across its order-execution
 subsystem, **52 atomic, verified facts**, each read and checked against the cited method and then
@@ -99,9 +113,11 @@ composer answers is what a budget costs.
       Conservative *and* Balanced; *broker HTTP transport* scores 0.50 at both. Nothing minimization does
       explains a fact that is missing when every body is kept — those facts were in files the ranker did
       not choose, or in the part of a chosen file the budget cut.
-    - **A file larger than the budget is truncated, not dropped.** Before 2.0.0 it was dropped whole. It is
-      now truncated at a line boundary and the header says so. What is still true is that truncation is
-      positional rather than query-aware.
+    - **A file larger than the budget was truncated, not dropped, in the measured run.** Before 2.0.0 it
+      was dropped whole; on 3.0.0, the code these numbers describe, it was truncated at a line boundary
+      from the top, positionally rather than query-aware, and the header said so. 4.0.0 cuts such a file at
+      its declarations, the query-relevant ones first, and truncates positionally only a file that cannot
+      be cut. Whether that recovers more of the missing facts is **unmeasured**.
     - **Doc-comments are stripped at Balanced**, so a fact living only in a `///` comment cannot survive
       that level. This run does not isolate how many of the missing facts are of that kind, so no number
       is offered for it.
@@ -112,7 +128,7 @@ composer answers is what a budget costs.
 
 | Metric | How | Where |
 |---|---|---|
-| **Compression** | Delivered tokens vs. the original size of the files actually delivered, using a real tokenizer. Context *searched* is reported separately and is never a baseline. | `token_report` (live, per tool) |
+| **Compression** | Delivered tokens vs. the original size of the source actually delivered — whole files, delivered declarations, or the source a truncated excerpt maps back to (4.0.0; the 3.0.0 figures above credited a truncated excerpt with its whole file) — using a real tokenizer. Context *searched* is reported separately and is never a baseline. | `token_report` (live, per tool) |
 | **Quality retention** | An **LLM-as-judge** scores key-point recall — does the delivered context let a reader recover each key fact? | eval harness |
 | **Composed vs. naive** | The [prompt composer](composer.md) vs. dumping the raw whole files: recall + tokens delivered | eval harness report |
 
@@ -127,7 +143,7 @@ Sankshep works two independent levers, and they are **measured differently on pu
   judge.
 - **Minimization** — AST transforms strip comments and collapse non-target method bodies to signatures,
   shrinking what remains. This *is* reported, as **compression**: delivered tokens against the original
-  size of the same files, so like is compared with like.
+  size of the source that came back, so like is compared with like.
 
 The tokens Sankshep *searched* to make that selection are reported for context and never subtracted from
 anything. Counting them would claim credit against a baseline nobody could have sent — on a large
