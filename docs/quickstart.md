@@ -51,9 +51,10 @@ A path that matches nothing, holds no supported source, or names a file rather t
 the index is empty and tells you to run `index_repo`, rather than returning an empty result you might read
 as "that code does not exist".
 
-!!! note "Upgrading from 1.x?"
-    Your existing index is discarded and rebuilt once, on first start. See
-    [Upgrading to 2.0.0](upgrading-2.0.md), then [Upgrading to 3.0.0](upgrading-3.0.md).
+!!! note "Upgrading?"
+    From 1.x or 2.0.0, your existing index is discarded and rebuilt once, on first start. See
+    [Upgrading to 2.0.0](upgrading-2.0.md), then [Upgrading to 3.0.0](upgrading-3.0.md), then
+    [Upgrading to 4.0.0](upgrading-4.0.md). From 3.0.0 to 4.0.0 nothing rebuilds.
 
 ## 5. Ask a grounded question
 
@@ -67,8 +68,10 @@ Or force it explicitly with the tool. A good first call:
 get_context   query: "how does X work"   paths: ["src"]   tokenBudget: 8000   level: "Balanced"
 ```
 
-The result leads with a header — `original -> delivered (% smaller)`, what it searched, what it withheld —
-then the minimized code. The model answers from that.
+The result leads with a header — `original -> delivered (% smaller)`, what it searched, which files came back
+only in part (`PARTIAL`) and which not at all (`WITHHELD`) — then the minimized code. A file that does not fit
+the budget arrives as its most relevant declarations, each cited `// path:start-end Symbol`. The model
+answers from that.
 
 ## 6. See the savings
 
@@ -76,8 +79,8 @@ then the minimized code. The model answers from that.
 token_report   → { "calls": …, "selectedTokens": …, "deliveredTokens": …, "compressionPct": …, "byTool": [ … ] }
 ```
 
-`compressionPct` is delivered vs. the original size of the files delivered — a real, bounded number, no dollar
-estimate. To measure savings **and** answer-quality together on a named repo, see [Benchmarks](benchmarks.md).
+`compressionPct` is delivered vs. the original size of the source that came back — a whole file, or the
+declarations delivered from a file that did not fit — a real, bounded number, no dollar estimate. To measure savings **and** answer-quality together on a named repo, see [Benchmarks](benchmarks.md).
 
 ## Next
 

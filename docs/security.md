@@ -58,8 +58,15 @@ configure authentication or explicitly accept the exposure:
 - **OAuth 2.1** resource-server mode: `SANKSHEP_OAUTH_*`.
 - **Explicit opt-in** for a trusted, network-isolated deployment: `SANKSHEP_ALLOW_UNAUTHENTICATED=1`.
 
-Health probes stay anonymous. The Helm chart is **secure by default**: it surfaces an `auth` block and will
-not serve unauthenticated on `0.0.0.0` unless you opt in.
+Since 4.0.0 three more configurations refuse to start, each with one line on stderr and exit 1: a routable
+bind with no `SANKSHEP_ALLOWED_HOSTS` (set the names clients use, or `*` to accept any `Host` deliberately;
+`*` mixed with names is refused too), an API key shorter than 32 characters, and only one of
+`SANKSHEP_OAUTH_AUTHORITY` / `SANKSHEP_OAUTH_AUDIENCE` — which used to fall back silently to API-key mode or
+to no authentication. The exact lines are on [Troubleshooting](troubleshooting.md).
+
+Health probes stay anonymous. The Helm chart is **secure by default**: it surfaces an `auth` block, will
+not serve unauthenticated on `0.0.0.0` unless you opt in, and renders the `Host` allow-list (`*` when you
+disable it).
 
 ## Hardening & verified posture
 
@@ -69,11 +76,11 @@ These controls are enforced in code and covered by tests/CI:
 |---|---|
 | **Egress** | No repo content leaves the host; socket-level test + no-egress air-gap CI prove it. |
 | **Telemetry** | Off by default; opt-in only; counts + folder-name tag, never paths/queries/code. |
-| **Path scope** | Containment covers **all three path-taking tools** — `get_context`, `summarize_repo` and `index_repo` — not just one. A `../..` escape is rejected, a rooted-but-not-fully-qualified path such as `/etc` is resolved against the repo root rather than taken literally, and a symlink or junction whose target leaves the root is **skipped rather than followed**. On the HTTP transport the absolute-path carve-out is refused outright. |
+| **Path scope** | Containment covers **all three path-taking tools** — `get_context`, `summarize_repo` and `index_repo` — not just one. A `../..` escape is rejected, a rooted-but-not-fully-qualified path such as `/etc` is resolved against the repo root rather than taken literally, and a symlink or junction whose target leaves the root is **skipped rather than followed**. Since 4.0.0 a named path is resolved link by link to where it really lands before it is read, so a link **anywhere along it** — a directory named in `paths` that links out, a file beneath one, or a link whose target passes through another outbound link — is refused as escaping the served root, and the index drops a stored key that a later checkout has put behind an outbound link. On the HTTP transport the absolute-path carve-out is refused outright. |
 | **SQL** | All SQLite access (facts, vectors, stats) uses bound parameters — no string-built queries. |
 | **Deserialization** | Typed YAML/JSON only; no polymorphic type resolution, no `BinaryFormatter`. |
 | **Untrusted repos** | `.gitignore` matching is ReDoS-safe — every pattern compiles with `RegexOptions.NonBacktracking`, which guarantees linear time in the input length. `.docx`/`.pdf` extraction is size-capped against decompression bombs, source files have their own byte cap, and directory walks are iterative and symlink-cycle-safe. A directory that cannot be read yields a **partial** result rather than failing the whole call. Nothing in a served repository is configuration: neither transport reads `appsettings.json`. |
-| **Auth** | Fails closed on unauthenticated non-loopback binds; API keys compared with a constant-time equality. |
+| **Auth** | Fails closed on unauthenticated non-loopback binds; since 4.0.0 also on a non-loopback bind with no `Host` allow-list, on an API key under 32 characters, and on half an OAuth configuration. API keys compared with a constant-time equality. |
 | **Secrets** | API keys / tokens are never written to logs; all logging is paths/errors/counts only. |
 | **Isolation** | The image runs as a non-root user. A read-only root filesystem and dropping all Linux capabilities are **runtime** settings, not image ones: the Helm chart sets both, and the `docker run` recipe on the [deployment page](deployment.md) passes them. |
 
@@ -98,13 +105,14 @@ A second and much harder review followed it. The **2026-09-05 production-readine
 findings across thirteen dimensions and scored v1.8.0 **45/100 — not ready**, including three critical
 defects producing silently wrong output on the default path.
 
-**All three criticals are fixed in v2.0.0.** Of the 189 findings, 162 are closed, 23 were refuted on
-re-examination, and **four ship deferred** rather than quietly: one blocked by an SDK bug (NuGet lock
-files), two awaiting a decision rather than a fix (the sqlite-vec native's provenance, and a licensing
-question), and one needing the maintainer's hands (rotating a key out of a local benchmark script). The
-security-relevant one of those four is the sqlite-vec provenance question; it is stated here because a
-release that listed only its closures would be making the same kind of claim this remediation spent itself
-removing.
+**All three criticals are fixed in v2.0.0.** When 2.0.0 shipped, 162 of the 189 findings were closed, 23
+were refuted on re-examination, and **four shipped deferred** rather than quietly: one blocked by an SDK bug
+(NuGet lock files), two awaiting a decision rather than a fix (the sqlite-vec native's provenance, and a
+licensing question), and one needing the maintainer's hands (rotating a key out of a local benchmark
+script). As of 4.0.0 all four are closed — the lock files and the native's provenance in 3.0.0, the key
+rotated, and the licence left unchanged with its terms now documented on the home page — so the count
+stands at **166 closed, 23 refuted, none deferred**. The deferrals are kept here because a release that
+listed only its closures would be making the same kind of claim this remediation spent itself removing.
 
 That audit is also the reason this page says "maintainer-run" instead of "independent": it is exactly the
 kind of claim a self-review is worst at checking about itself.
@@ -123,8 +131,31 @@ contains can enforce either. The Helm chart sets `readOnlyRootFilesystem: true` 
 `docker run` gets neither.
 
 The image pins **both** its base images by digest, and it carries a full SLSA provenance statement and an
-SPDX SBOM, which `docker buildx imagetools inspect` will show you. The embedding-model download is SHA-256
-verified and fail-closed. For the strictest posture, pin the image by digest and side-load the model.
+SPDX SBOM, which `docker buildx imagetools inspect` will show you. Every build restores the exact dependency
+graph CI tested, from committed lock files, since 3.0.0. The embedding-model download is SHA-256 verified and
+fail-closed. For the strictest posture, pin the image by digest and side-load the model.
+
+**Since 4.0.0 the image and the Helm chart are signed**, keylessly through Sigstore, by the release
+workflow's own identity, and the release verifies both signatures before it finishes. Earlier releases carry
+no signature. Check that the image you pulled was produced by that workflow for that tag:
+
+```bash
+cosign verify \
+  --certificate-identity "https://github.com/nitinpawar28/sankshep/.github/workflows/release.yml@refs/tags/v4.0.0" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  ghcr.io/nitinpawar28/sankshep:v4.0.0
+```
+
+The chart is signed the same way, but its package is not yet publicly pullable (see
+[Deployment](deployment.md#kubernetes)), so for now only the image can be verified by a reader. Two more
+gates sit in front of a release since 4.0.0: the image is scanned, and a fixable HIGH or CRITICAL finding
+stops the release before any package reaches nuget.org; and the release requires green package, container,
+compose, air-gap and cluster smoke results for the commit being tagged.
+
+## Supported versions
+
+The latest released 4.x version receives security fixes. Please upgrade before reporting against an older
+build.
 
 ## Reporting a vulnerability
 
