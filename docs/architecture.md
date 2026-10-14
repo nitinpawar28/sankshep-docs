@@ -65,11 +65,15 @@ protocol adapter is confined to one project.
 
 - **tree-sitter over a language-specific parser** — one incremental, multi-language parsing engine for
   AST-aware minimization.
+- **symbol-level packing** (4.0.0) — a file that does not fit what is left of the budget is cut at its
+  declarations, so the budget goes to what the query is about rather than to the top of a big file. Each piece
+  is credited with its own source span, never the whole file, so compression cannot inflate.
 - **local ONNX embeddings over a cloud API** — offline, private, no per-query network or cost.
 - **`sqlite-vec` over a vector database** — a single embedded file, no service to run, with a pure-C#
   brute-force fallback.
 - **working-tree-as-truth freshness** — the index tracks your working tree file by file: verify-on-read,
-  which re-indexes changed files and prunes deleted ones on every search, plus an optional watcher
+  which re-indexes changed files and prunes deleted ones on every search (since 4.0.0 at most 25 changed files
+  per search, with a header note counting any it left stale), plus an optional watcher
   (`SANKSHEP_WATCH=1`) that, once a burst of changes settles, runs an incremental index over the served
   root, which picks up new files too. There is **no branch-aware re-index**: the index never reads git
   HEAD (memory does, to tag each fact with the current branch). Without the watcher, re-run `index_repo`
