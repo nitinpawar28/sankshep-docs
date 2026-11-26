@@ -34,22 +34,27 @@ Binds `127.0.0.1:8080` by default (loopback), exposing the same MCP tools over S
 `/health/live`, `/health/ready`, and an embedded KPI dashboard at `/dashboard`. Set
 `ASPNETCORE_URLS=http://0.0.0.0:8080` to bind a routable address — but a non-loopback bind **refuses to
 start** unless you configure authentication (`SANKSHEP_API_KEYS` / `SANKSHEP_OAUTH_*`, see below) or set
-`SANKSHEP_ALLOW_UNAUTHENTICATED=1` for a trusted, network-isolated host.
+`SANKSHEP_ALLOW_UNAUTHENTICATED=1` for a trusted, network-isolated host, **and**, since 4.0.0, set
+`SANKSHEP_ALLOWED_HOSTS` to the host names clients use (or `*` to accept any `Host` deliberately). Every API
+key must be at least 32 characters.
 
 ## Docker
 
 A multi-arch, non-root image is published to GHCR. Mount your repo **read-only**; state and the model
 live on separate volumes. The image binds `0.0.0.0` (required in a container), so it **fails closed** at
-startup unless you configure auth or explicitly accept an unauthenticated bind:
+startup unless you configure auth or explicitly accept an unauthenticated bind — and, since 4.0.0, unless
+`SANKSHEP_ALLOWED_HOSTS` names the hosts clients use. The key must be at least 32 characters:
 
 ```bash
-docker run --rm -p 8080:8080 \
+KEY=$(openssl rand -hex 32)
+docker run --rm -p 127.0.0.1:8080:8080 \
   --read-only --cap-drop=ALL --tmpfs /tmp \
   -v "$PWD:/repo:ro" \
   -v sankshep-state:/state \
   -v sankshep-models:/models \
-  -e SANKSHEP_API_KEYS=change-me \
-  ghcr.io/nitinpawar28/sankshep:v3.0.0
+  -e SANKSHEP_API_KEYS="$KEY" \
+  -e SANKSHEP_ALLOWED_HOSTS=localhost,127.0.0.1 \
+  ghcr.io/nitinpawar28/sankshep:v4.0.0
 ```
 
 !!! note "Why a version and not `:latest`"
@@ -64,8 +69,10 @@ them for you** — they are runtime settings. The process writes only `/models`,
 is why the read-only root filesystem costs nothing here. The Helm chart applies the equivalent
 (`readOnlyRootFilesystem`, `drop: [ALL]`) on your behalf.
 
-Clients then send `Authorization: Bearer change-me`. For a trusted, network-isolated host only, swap the
-key for `-e SANKSHEP_ALLOW_UNAUTHENTICATED=1` to accept the exposure instead.
+Clients then send `Authorization: Bearer $KEY`. To reach the container from another machine, add the host
+name those clients use to `SANKSHEP_ALLOWED_HOSTS` and publish the port on that interface. For a trusted,
+network-isolated host only, swap the key for `-e SANKSHEP_ALLOW_UNAUTHENTICATED=1` to accept the exposure
+instead; the allow-list is still required.
 
 ## Windows Service / systemd
 
@@ -92,54 +99,70 @@ Run `--http` as a native service:
     **The index rebuilds and authored memory is not migrated.** Copy `facts.db` across by hand if you want
     to keep it — nothing copies it for you, because copying a file out of an attacker-controllable
     directory while running as `LocalSystem` is the defect the move exists to close.
-- **Linux:** a `systemd` unit (`Type=exec`, journald, restart-on-failure) — reproduced in full below,
-  because the source repository is private and "the provided unit" was not something a reader could
-  obtain.
+- **Linux:** a `systemd` unit (`Type=exec`, journald, restart-on-failure, sandboxed) — reproduced in full
+  below, exactly as 4.0.0 ships it, because the source repository is private and "the provided unit" was
+  not something a reader could obtain.
 
 ### The systemd unit
 
-Save as `/etc/systemd/system/sankshep.service`, then `systemctl daemon-reload && systemctl enable --now
-sankshep`:
+The unit expects the executable at `/opt/sankshep/sankshep` and a dedicated `sankshep` user; it binds
+loopback, so it needs no key. Save the unit below as `sankshep.service`, install the tool, create the user and
+the state directories, edit `ExecStart`'s `--repo` path, then enable it:
+
+```bash
+sudo useradd --system --no-create-home --shell /usr/sbin/nologin sankshep
+sudo dotnet tool install --tool-path /opt/sankshep sankshep
+sudo install -Dm644 sankshep.service /etc/systemd/system/sankshep.service
+sudo mkdir -p /var/lib/sankshep/models /var/lib/sankshep/state
+sudo chown -R sankshep /var/lib/sankshep
+sudo chmod 700 /var/lib/sankshep /var/lib/sankshep/state /var/lib/sankshep/models
+sudo systemctl daemon-reload
+sudo systemctl enable --now sankshep
+curl -fsS http://127.0.0.1:8080/health/ready   # `active` means running, not ready
+```
+
+The `dotnet tool` install needs the .NET 10 SDK on the host. (Each release also builds self-contained Linux
+tarballs that land the same executable at the same path, but they are attached to a GitHub release in the
+private source repository and are **not publicly obtainable**; the nuget.org package is.) To expose the
+service beyond loopback, set `ASPNETCORE_URLS`, an authentication mode and `SANKSHEP_ALLOWED_HOSTS` as under
+[Authentication](#authentication), and grant any moved state or model path back in `ReadWritePaths`, because
+`ProtectSystem=strict` makes everything else read-only.
 
 ```ini
 [Unit]
-Description=Sankshep MCP server
-After=network-online.target
+Description=Sankshep MCP Server
 Wants=network-online.target
+After=network-online.target
 
 [Service]
-# Type=exec, not Type=notify: under notify the server reports READY to systemd before its readiness
-# gate has finished, so "active" would claim more than is true. Readiness is GET /health/ready.
 Type=exec
-ExecStart=/usr/local/bin/sankshep --http --repo /srv/repo
-Environment=SANKSHEP_STATE_DIR=/var/lib/sankshep
-Environment=SANKSHEP_MODEL_DIR=/var/lib/sankshep/models
-Environment=SANKSHEP_API_KEYS=change-me
+ExecStart=/opt/sankshep/sankshep --http --repo /srv/repo
 User=sankshep
-Group=sankshep
-
-# Restart, bounded. An unbounded restart loop turns one unusable index into a crash-loop that fills the
-# journal while the unit reports "activating".
+UMask=0077
+Environment=SANKSHEP_MODEL_DIR=/var/lib/sankshep/models
+Environment=SANKSHEP_STATE_DIR=/var/lib/sankshep/state
 Restart=on-failure
 RestartSec=5
 StartLimitIntervalSec=300
 StartLimitBurst=3
 
-# Sandboxing. The process needs to read the repository and write its state directory, and nothing else.
 NoNewPrivileges=true
-PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/lib/sankshep
-ProtectKernelTunables=true
-ProtectKernelModules=true
-ProtectControlGroups=true
-RestrictSUIDSGID=true
-LockPersonality=true
+PrivateTmp=true
+StateDirectory=sankshep
+ReadWritePaths=-/var/lib/sankshep
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 
 [Install]
 WantedBy=multi-user.target
 ```
+
+The unit above is the one 4.0.0 ships, directive for directive; its comments are left out. Earlier versions of this page
+carried five further sandbox directives that were never in the shipped unit - `ProtectKernelTunables`,
+`ProtectKernelModules`, `ProtectControlGroups`, `RestrictSUIDSGID` and `LockPersonality`. They are standard systemd
+hardening and nothing in Sankshep needs them removed, but, like the unit itself (see the caveat at the top of this page),
+they have not been tested under systemd, which is why they are not reproduced here.
 
 ## Kubernetes
 
@@ -147,9 +170,10 @@ WantedBy=multi-user.target
 
     A Helm chart exists and is tested (`helm lint` plus rendered-template assertions on every change, and
     the kind install described at the top of this page). Releases from 3.0.0 on push it to GHCR as an OCI
-    chart, but that package **is not publicly pullable yet**, so there is still no `helm install` command
-    a reader can run. Ask for it, or use the container directly with the `docker run` recipe above — the
-    chart's value is the git-sync sidecar and the PVC wiring, not anything the image cannot do.
+    chart, versioned with the application (the 4.0.0 release pushed chart 4.0.0, signed with cosign), but
+    that package **is not publicly pullable yet**, so there is still no `helm install` command a reader can
+    run. Ask for it, or use the container directly with the `docker run` recipe above — the chart's value
+    is the git-sync sidecar and the PVC wiring, not anything the image cannot do.
 
     Until the chart package is public, treating this section as documentation of an artifact you can
     obtain would be wrong.
@@ -160,13 +184,19 @@ classic-sidecar fallback for older clusters.
 
 The pod binds `0.0.0.0`, so like the container it **fails closed**: set `auth.apiKeys` (recommended —
 source them from a `Secret`, via `auth.existingSecret`) or `auth.allowUnauthenticated=true` for a trusted
-network. A default `helm install` with both unset will not start.
+network. A default `helm install` with both unset will not start. Since 4.0.0 each key must be at least 32
+characters, or the pod refuses to start and crash-loops:
 
-!!! warning "Breaking in chart 1.3.0 — Ingress users will get 403 until they act"
-    The chart now renders a `Host` allow-list by default, derived from **this release's own Service DNS**
-    plus the loopback names a `kubectl port-forward` makes a browser send. That is the hardening a routable
-    bind calls for (see [Security & privacy](security.md)), and before 1.3.0 setting it meant hand-writing
-    `extraEnv`.
+```bash
+kubectl create secret generic sankshep-keys --from-literal=api-keys="$(openssl rand -hex 32)"
+# then: --set auth.existingSecret=sankshep-keys
+```
+
+!!! warning "The `Host` allow-list — Ingress users will get 403 until they act"
+    Since 2.0.0 the chart renders a `Host` allow-list by default, derived from **this release's own Service
+    DNS** plus the loopback names a `kubectl port-forward` makes a browser send. That is the hardening a
+    routable bind calls for (see [Security & privacy](security.md)), and before that setting it meant
+    hand-writing `extraEnv`.
 
     An **Ingress hostname cannot be derived from anything the chart knows**, so it has to be declared:
 
@@ -175,15 +205,17 @@ network. A default `helm install` with both unset will not start.
       extra: ["sankshep.internal.example.com"]
     ```
 
-    `allowedHosts.enabled: false` restores the previous behaviour exactly. **Health probes are exempt
-    either way**, so a 403 here never takes the pod down — and `NOTES.txt` prints the effective list after
-    install, so nobody has to guess why a request was refused.
+    `allowedHosts.enabled: false` renders `SANKSHEP_ALLOWED_HOSTS=*` from 4.0.0 on — the server refuses a
+    routable bind with no list, so "disabled" means any `Host` is accepted deliberately, with `Origin`
+    validation still on. **Health probes are exempt either way**, so a 403 here never takes the pod down —
+    and `NOTES.txt` prints the effective list after install, so nobody has to guess why a request was
+    refused.
 
-    Also in 1.3.0: the pod no longer mounts a Kubernetes API token it never used, the liveness probe gets
-    5 seconds instead of Kubernetes' 1-second default (this pod runs ONNX inference), and an optional
-    ingress-only `NetworkPolicy` is available — off by default, because a network policy is a decision
-    about your cluster, not one a chart should make. No egress policy is templated: that would break
-    git-sync and the model download.
+    Also in the chart since 2.0.0: the pod no longer mounts a Kubernetes API token it never used, the
+    liveness probe gets 5 seconds instead of Kubernetes' 1-second default (this pod runs ONNX inference) —
+    and from 4.0.0 so does the readiness probe — and an optional ingress-only `NetworkPolicy` is available —
+    off by default, because a network policy is a decision about your cluster, not one a chart should make.
+    No egress policy is templated: that would break git-sync and the model download.
 
 ## Air-gapped / zero-egress
 
@@ -220,11 +252,15 @@ network-isolated host. For a LAN or enterprise deployment:
 
 - **API key:** `SANKSHEP_API_KEYS=<key>` (comma-separated for multiple keys; the singular
   `SANKSHEP_API_KEY` remains a single-key alias) — every request except the health probes needs
-  `Authorization: Bearer <key>`.
+  `Authorization: Bearer <key>`. Since 4.0.0 every key must be at least 32 characters
+  (`openssl rand -hex 32`), or the server refuses to start.
 - **OAuth 2.1 Resource Server:** `SANKSHEP_OAUTH_AUTHORITY` + `SANKSHEP_OAUTH_AUDIENCE` — Sankshep
   validates tokens from *your* identity provider (audience/issuer/lifetime/signature + scopes) and
   serves Protected Resource Metadata. It is a Resource Server only; it never issues or forwards tokens.
-- **DNS-rebinding:** `SANKSHEP_ALLOWED_HOSTS` pins the `Host` header for non-loopback binds.
+  Set both or neither: since 4.0.0 one alone refuses to start.
+- **DNS-rebinding:** `SANKSHEP_ALLOWED_HOSTS` pins the `Host` header. Since 4.0.0 it is **required** on a
+  non-loopback bind — the names clients use, or `*` to accept any `Host` deliberately — and it does not
+  replace authentication.
 
 ## Telemetry (opt-in, counts-only)
 

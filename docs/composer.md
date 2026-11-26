@@ -10,7 +10,9 @@ returns that prompt in **one shot**, for the model to act on.
 The framing that governs this whole page: **the composer grounds a prompt in minimized-context + memory
 — it does not *generate* the prompt's intent, and it never generates the answer.**
 
-**Three claims, and they are not equally well supported — see [Benchmarks](benchmarks.md):**
+**Three claims, and they are not equally well supported — see [Benchmarks](benchmarks.md).** Every number
+below was measured on 3.0.0 (2026-09-20) and has not been re-measured for 4.0.0, which changed the engine the
+composer wraps; the figures are not evidence about 4.0.0 in either direction.
 
 1. **Fewer roundtrips** — a grounded first prompt is meant to remove the "let me look around the
    codebase first" turns. **Not measured.** A single-shot harness cannot see roundtrips; it needs an
@@ -107,7 +109,10 @@ Four labelled sections, assembled deterministically under a token budget that bo
 conventions:
 
 - **Task** — your one-line intent, verbatim.
-- **Relevant code** — AST-minimized, ranked snippets from `get_context`, each with its file path.
+- **Relevant code** — AST-minimized, ranked snippets from `get_context`, each under a `// path:start-end`
+  locator. Since 4.0.0 a file that does not fit the budget arrives as its most relevant declarations, each
+  cited `// path:start-end Symbol`. The composed prompt carries none of `get_context`'s header lines, so the
+  line ranges on those locators are the only sign that a file is incomplete.
 - **Project conventions** — facts remembered under the **`convention`** category, branch-scoped, deduped,
   most-recent-first. Only that category: a fact filed as `decision`, `gotcha` or anything else is never
   injected here, however relevant it looks. When the section is empty it says so, and names the categories

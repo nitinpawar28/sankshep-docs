@@ -21,13 +21,14 @@ answer. Sankshep sends the model the *small, relevant slice* instead: it retriev
 matter and AST-minimizes them (strips comments, collapses non-target method bodies), then reports how
 many tokens it saved.
 
-The full surface — ten MCP primitives (eight tools, one prompt and one resource), documented in the
-[tool reference](tool-reference.md), with real captured I/O for every tool and the prompt:
+The full surface — ten MCP primitives (eight tools, one prompt and one resource), each documented with real
+captured I/O in the [tool reference](tool-reference.md):
 
 <div class="grid cards" markdown>
 
 - :material-scissors-cutting: **Minimize** — ranked, comment-stripped, body-collapsed context under a
-  token budget ([`get_context`](tool-reference.md#get_context)).
+  token budget, and, when a file is too big for what is left of it, just the declarations your query is
+  about ([`get_context`](tool-reference.md#get_context)).
 - :material-magnify: **Search** — semantic (nearest-neighbor) search over a local embedding index you
   build with `index_repo` ([`search_code`](tool-reference.md#search_code)).
 - :material-file-tree: **Map** — namespaces, public types, and method signatures for a directory
@@ -53,6 +54,9 @@ The full surface — ten MCP primitives (eight tools, one prompt and one resourc
 - **[Troubleshooting](troubleshooting.md)** · **[Security & privacy](security.md)** · **[Architecture](architecture.md)** — when something misbehaves, what stays local, and the engineering behind it.
 
 !!! note "Proprietary, free to use"
-    Sankshep is proprietary software, **free to install and use** (including commercially). Its source
-    is private and it does not accept external pull requests — but the tool itself stays a public,
-    free-to-install package. See [Feedback](feedback.md) to reach the maintainer.
+    Sankshep is proprietary software, **free to install and use** (including commercially), on any number
+    of machines you control. Two things the licence does not permit: hosting it as a service to third
+    parties, and modifying it or building derivative works from it — a container image derived from the
+    published one included. Its source is private and it does not accept external pull requests — but the
+    tool itself stays a public, free-to-install package. The full `LICENSE` ships inside the NuGet package
+    and at `/app/LICENSE` in the container image. See [Feedback](feedback.md) to reach the maintainer.

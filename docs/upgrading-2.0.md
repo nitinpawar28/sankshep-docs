@@ -72,7 +72,9 @@ allowedHosts:
   extra: ["sankshep.internal.example.com"]
 ```
 
-`allowedHosts.enabled: false` restores the previous behaviour exactly.
+`allowedHosts.enabled: false` restores the previous behaviour exactly. (From 4.0.0 it renders
+`SANKSHEP_ALLOWED_HOSTS=*`, because the server now refuses a routable bind with no list; `*` accepts any
+`Host` deliberately, with `Origin` validation still on. See [Upgrading to 4.0.0](upgrading-4.0.md).)
 
 **Health probes are exempt either way**, so this can never take the pod down — the deployment comes up
 healthy and refuses traffic, which is the failure mode you want of the two. `NOTES.txt` prints the
@@ -152,9 +154,9 @@ to anyone watching a container restart loop. It is now **one line on stderr and 
 - **`index_repo`'s `path` is optional** and defaults to the whole repo. Its message now describes the walk
   rather than the index's total, and it reports progress per file when the client sends a progress token.
 - **`get_context`'s `tokenBudget` covers the header's fixed lines as well as the code**, and a file larger
-  than the budget is truncated rather than dropped whole. The header's `WARNING`, `NOTE` and `WITHHELD`
-  lines are not covered, so a call that fills its budget can come back over it; see the
-  [tool reference](tool-reference.md#get_context).
+  than the budget is truncated rather than dropped whole. In 2.0.0 and 3.0.0 the header's `WARNING`, `NOTE`
+  and `WITHHELD` lines were not covered, so a call that filled its budget could come back over it; 4.0.0
+  brought them inside the budget — see the [tool reference](tool-reference.md#get_context).
 - **Raising the log level cannot print your code.** See [Environment variables](environment.md#logging).
 - **`appsettings.json` in a served repository is ignored** on both transports. If you were configuring
   Sankshep that way, move those settings to environment variables — but note that a repo-root

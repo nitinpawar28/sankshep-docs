@@ -1,12 +1,94 @@
 # Changelog
 
-Notable changes by release. The current release is **3.0.0**.
+Notable changes by release. The current release is **4.0.0**.
 
 !!! note "Corrected against the tags"
 
     Two entries below were previously filed under the wrong release, and the largest change in 1.6.0 was
     missing entirely. Each attribution here has been checked with `git tag --contains` against the commit
     that made it.
+
+## 4.0.0
+
+*2026-10-13 — five breaking changes; on the default stdio path most installs feel none of them.*
+See [Upgrading to 4.0.0](upgrading-4.0.md). No index rebuilds in this release.
+
+### Breaking changes
+
+- **A routable `--http` bind refuses to start without `SANKSHEP_ALLOWED_HOSTS`.** The server used to accept
+  any `Host` when the variable was unset, which left the DNS-rebinding defence off exactly where it matters.
+  Set it to the names clients use, or to `*` to accept any `Host` deliberately. A value naming no host, or
+  `*` mixed with names, is refused too. The Helm chart sets the list, and renders `*` when
+  `allowedHosts.enabled` is `false`.
+- **An API key under 32 characters, or only one of `SANKSHEP_OAUTH_AUTHORITY` / `SANKSHEP_OAUTH_AUDIENCE`,
+  refuses to start** with one line on stderr and exit 1. One OAuth variable alone used to fall back silently
+  to API-key mode or to no authentication.
+- **`get_context` keeps its `tokenBudget` ceiling on calls that fill it.** The `WARNING`, `NOTE` and
+  `WITHHELD` header lines used to ride on top of the budget, so a budget-bound call came back 120–150 tokens
+  over. They now name only as many paths as fit and count the rest, folding into one `// NOTE: … raise
+  tokenBudget to see which.` line as a last resort, and such a call is packed again with room for them, so it
+  carries up to 116 fewer tokens of code. A call that fits is unchanged. A client that parsed names out of
+  those lines should read the count instead.
+- **`remember` refuses `text` over 4,000 characters, `category` over 64 and `source` over 2,048.** A fact
+  cannot be deleted, so an oversized one inflated every later `recall`, `DECISIONS.md` and composed prompt
+  for good. Store the decision, and point `source` at the file.
+- **`search_code` refuses `topK` above 100.** Only the lower bound was checked, and a very large value came
+  back as an error blaming a locked index. Ask for 100 or fewer; for broader reads use `get_context` or
+  `summarize_repo`.
+
+### Changed
+
+- **`get_context` delivers a file that does not fit by its declarations instead of not at all.** When a file
+  does not fit what is left of `tokenBudget`, it is cut at its types and methods, the ones the query is about
+  first, across every ranked file. Each excerpt is cited `// path:start-end Symbol`. A new `// PARTIAL, …`
+  header line names the files that came back in part, and `WITHHELD` now means nothing of the file came back.
+  A file that fits whole comes back exactly as before. `compose_task_prompt` uses the same engine.
+- **`search_code` re-embeds at most 25 changed files before answering.** After a branch switch one search
+  could spend minutes re-embedding. When files are left behind, the header says how many, and `index_repo`
+  brings them current.
+
+### Security
+
+- **A link anywhere along a path now counts for containment, not only one at its end.** `get_context`,
+  `index_repo` and `summarize_repo` resolve every path to where it really lands, link by link, before reading
+  it, and such paths are reported as escaping the served `--repo` root. The index drops a stored key that a
+  later checkout has put behind an outbound link instead of re-reading it.
+- **The release image and the Helm chart are signed** keylessly with cosign by the release workflow's own
+  identity, and the release verifies both signatures before it finishes. See
+  [Security → supply chain](security.md#supply-chain) for the `cosign verify` command.
+- **A release refuses an image with a fixable HIGH or CRITICAL vulnerability**, and requires green smoke
+  results for the tagged commit.
+- **A served repository can no longer run a program when the server starts on it.** `git` is now found only
+  in `PATH`'s absolute entries, never in the repository or the current directory.
+- **`sankshep service install` starts `sc.exe` from the system directory** rather than by bare name.
+
+### Fixed
+
+- **A truncated excerpt is credited with the source it covers, not its whole file**, so compression on a
+  budget-bound call reads lower than before and is honest.
+- **Locator lines and truncation markers in Python and Ruby excerpts are `#` comments.** They were always
+  `//`, which in those languages reads as code.
+- **`get_context` names every ranked file it did not deliver**, as "ranked but not delivered"; files ranked
+  after the point where the budget filled used to be missing from the list and the count.
+- **The budget counts the separators between chunks**, so a budget filled exactly no longer comes back a
+  few tokens over.
+- **Stripping a comment no longer fuses the tokens around it**, including adjacent comments.
+- **`remember` stores a blank `source` as no source.**
+- **`search_code` counts only files it really re-indexed** against its 25-file cap.
+- **Semantic ranking no longer puts a file the index found below one it never found.**
+- **An `index.db` that cannot be opened no longer stops the server**: `index_repo` and `search_code` return an
+  error naming the file and what to check, and the other tools work.
+- **`summarize_repo` skips a file it cannot read and names it** on a `WARNING:` line instead of failing the
+  whole call, and says a file path is a file instead of "path not found".
+- **`recall` requires every word of the query**; words past the sixteenth distinct one were ignored.
+- **Removing an unused `using` alias at `Aggressive` keeps whatever shares its line.**
+
+### Deployment
+
+- **The Helm chart's readiness probe allows 5 seconds**, like liveness.
+- **The observability compose example binds to loopback and Grafana is no longer anonymous**; its `.env` must
+  set `GRAFANA_ADMIN_PASSWORD`.
+- **The Linux tarballs ship `LICENSE`, `NOTICE` and `THIRD-PARTY-NOTICES.md`**, as the package and image did.
 
 ## 3.0.0
 
@@ -47,7 +129,7 @@ not ready**, including three critical defects that produced silently wrong outpu
 release is the remediation of that audit: 162 findings closed, 23 refuted on re-examination, and four
 deferred with their reasons stated.
 
-**Start here if you are upgrading:** [Upgrading to 3.0.0](upgrading-3.0.md) lists the one-time steps. Coming from 1.x, read [Upgrading to 2.0.0](upgrading-2.0.md) first — both index rebuilds apply.
+**Start here if you are upgrading:** [Upgrading to 4.0.0](upgrading-4.0.md) lists what the current release asks of you. Coming from 2.0.0, read [Upgrading to 3.0.0](upgrading-3.0.md) as well; coming from 1.x, start at [Upgrading to 2.0.0](upgrading-2.0.md) — the 1.x and 2.0.0 index rebuilds both apply, and 4.0.0 adds none.
 
 **The three criticals — all of them produced output that looked correct:**
 

@@ -30,19 +30,28 @@ ignores them.
 
 | Variable | Purpose | Default |
 |---|---|---|
-| `ASPNETCORE_URLS` | Bind address(es). A **non-loopback** value (e.g. `http://0.0.0.0:8080`) triggers the fail-closed auth gate below. | `http://127.0.0.1:8080` (loopback) |
-| `SANKSHEP_API_KEYS` | Comma-separated bearer keys (API-key auth). Clients send `Authorization: Bearer <key>`; keys are compared in constant time. `SANKSHEP_API_KEY` is a single-key alias. | unset (auth mode `None`) |
-| `SANKSHEP_OAUTH_AUTHORITY` · `SANKSHEP_OAUTH_AUDIENCE` | OAuth 2.1 resource-server mode (validate bearer tokens from your IdP). **Both** are required to select it; setting one alone does nothing. OAuth wins over API-key mode when both are configured. | unset |
+| `ASPNETCORE_URLS` | Bind address(es). A **non-loopback** value (e.g. `http://0.0.0.0:8080`) triggers the fail-closed auth gate below and, since 4.0.0, also requires `SANKSHEP_ALLOWED_HOSTS`. | `http://127.0.0.1:8080` (loopback) |
+| `SANKSHEP_API_KEYS` | Comma-separated bearer keys (API-key auth). Clients send `Authorization: Bearer <key>`; keys are compared in constant time. `SANKSHEP_API_KEY` is a single-key alias. Since 4.0.0 every key must be at least **32 characters** or the server refuses to start, on any `--http` bind; the refusal names the variable and how many keys are short, never a key. Generate one with `openssl rand -hex 32`. | unset (auth mode `None`) |
+| `SANKSHEP_OAUTH_AUTHORITY` · `SANKSHEP_OAUTH_AUDIENCE` | OAuth 2.1 resource-server mode (validate bearer tokens from your IdP). **Both** are required; since 4.0.0 setting only one refuses to start, naming the missing variable (it used to fall back silently to API-key mode or to no authentication). OAuth wins over API-key mode when both are configured. | unset |
 | `SANKSHEP_OAUTH_SCOPES` | Scopes a caller's token must carry. **Defaults to `mcp:tools`** — leaving it unset is *not* the same as requiring nothing: a token without that scope is still rejected. | `mcp:tools` |
 | `SANKSHEP_OAUTH_RESOURCE` | The protected-resource URI. **Required unless `_AUDIENCE` is an absolute URI** — otherwise the server throws at startup rather than serving unprotected. | derived from `_AUDIENCE` |
 | `SANKSHEP_ALLOW_UNAUTHENTICATED` | `1` explicitly permits an **unauthenticated non-loopback bind**. Without it — and without auth configured — a non-loopback bind **refuses to start**. Use only on a trusted, network-isolated deployment. | off (server fails closed) |
-| `SANKSHEP_ALLOWED_HOSTS` | Comma-separated `Host`-header allow-list, enforced in the pipeline so health probes stay reachable whatever it says. Entries are compared whole and a port is ignored. | loopback names on a loopback bind; **empty on any other bind**, which accepts no `Host` |
+| `SANKSHEP_ALLOWED_HOSTS` | Comma-separated `Host`-header allow-list, enforced in the pipeline so health probes stay reachable whatever it says. Entries are compared whole and a port is ignored. `*` accepts any `Host` deliberately (`Origin` validation stays on) and cannot be combined with names. Since 4.0.0 a **non-loopback bind refuses to start** with the variable unset, blank, or naming no host. | loopback names on a loopback bind; **required on any other bind** |
 | `SANKSHEP_ALLOWED_ORIGINS` | Comma-separated `Origin` allow-list for browser callers. Empty accepts **no** cross-origin request; a request with no `Origin` at all is unaffected. | empty |
 
-!!! warning "Fail-closed bind"
-    On a non-loopback bind with auth mode `None`, the server **refuses to start** unless
-    `SANKSHEP_ALLOW_UNAUTHENTICATED=1`. Configure `SANKSHEP_API_KEYS` (or `SANKSHEP_OAUTH_*`) instead
-    whenever you can. `SANKSHEP_ALLOWED_HOSTS` is additional hardening — it does **not** satisfy the auth gate.
+!!! warning "Fail-closed start"
+    Each of these refusals is one line on stderr and exit code 1, checked in this order:
+
+    1. **Half an OAuth pair, or an API key under 32 characters** — on any `--http` start, loopback included
+       (4.0.0).
+    2. **No authentication on a non-loopback bind** — unless `SANKSHEP_ALLOW_UNAUTHENTICATED=1`. Configure
+       `SANKSHEP_API_KEYS` (or `SANKSHEP_OAUTH_*`) instead whenever you can.
+    3. **`*` combined with host names in `SANKSHEP_ALLOWED_HOSTS`** — on any bind (4.0.0).
+    4. **A non-loopback bind with no `Host` allow-list** — `SANKSHEP_ALLOWED_HOSTS` unset, blank or naming no
+       host (4.0.0).
+
+    `SANKSHEP_ALLOWED_HOSTS` does **not** satisfy the auth gate; on a routable bind you need both. The exact
+    lines are quoted on [Troubleshooting](troubleshooting.md).
 
 ## Telemetry (opt-in)
 

@@ -12,7 +12,10 @@ air-gapped hosts, side-load the model and set `SANKSHEP_MODEL_OFFLINE=1` — see
 
 Since 1.8.0 the HTTP server **fails closed** on a non-loopback bind (`0.0.0.0`) when auth is `None`. Configure
 `SANKSHEP_API_KEYS` (or `SANKSHEP_OAUTH_*`), or — only on a trusted, network-isolated deployment — set
-`SANKSHEP_ALLOW_UNAUTHENTICATED=1`. See [Security → network exposure](security.md#network-exposure-http-mode).
+`SANKSHEP_ALLOW_UNAUTHENTICATED=1`. Since 4.0.0 a container also needs `SANKSHEP_ALLOWED_HOSTS` (the Helm
+chart sets it), every API key must be at least 32 characters, and OAuth needs both of its variables or
+neither — each refusal is one line on stderr, quoted on [Troubleshooting](troubleshooting.md). See also
+[Security → network exposure](security.md#network-exposure-http-mode).
 
 ## I ran `index_repo`, but `search_code` returns nothing
 

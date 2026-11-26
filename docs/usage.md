@@ -7,11 +7,11 @@ mode**; in Claude clients they're available directly.
 
 | Tool | What it does |
 |---|---|
-| **`get_context`** | Token-minimized context for given paths, relevance-ranked (semantic + lexical): strips comments, collapses method bodies that aren't relevant to your query, packs under a token budget, and reports the savings. Returns everything as one plain, readable text block — a short header stating how much was compressed and what was withheld (so nothing is silently truncated), followed by the code. |
-| **`search_code`** | Semantic (nearest-neighbor) search over a local embedding index (bge-small, ONNX, offline). |
+| **`get_context`** | Token-minimized context for given paths, relevance-ranked (semantic + lexical): strips comments, collapses method bodies that aren't relevant to your query, packs under a token budget, and reports the savings. When a file does not fit what is left of the budget, its most relevant declarations come back instead, each cited `// path:start-end Symbol`, and the header's `PARTIAL` line names the file (4.0.0). Returns everything as one plain, readable text block — a short header stating how much was compressed and what was withheld (so nothing is silently truncated), followed by the code. |
+| **`search_code`** | Semantic (nearest-neighbor) search over a local embedding index (bge-small, ONNX, offline). Returns 1–100 hits (`topK`). |
 | **`index_repo`** | Builds/refreshes the semantic index over code **and** `.docx` / `.pdf` documents. |
 | **`summarize_repo`** | Tree-sitter-backed API surface of a tree, in every language Sankshep parses. Bounded by `maxTokens`, and it says so when it truncates. |
-| **`remember` / `recall`** | A per-repo, branch-scoped fact store — decisions and conventions that persist across sessions and clients. |
+| **`remember` / `recall`** | A per-repo, branch-scoped fact store — decisions and conventions that persist across sessions and clients. Facts are at most 4,000 characters, categories at most 64 (4.0.0). |
 | **`export_decisions`** | Writes remembered decisions to a `DECISIONS.md`. |
 | **`token_report`** | Cumulative token accounting per tool: how far minimization compressed the code it delivered, and how much context it searched to find it. |
 
@@ -38,8 +38,8 @@ only what it verifies.
 | C / C++ | ✓ | ✓ | `.c` → C; `.cpp .cc .cxx .h .hpp .hh .hxx` → C++ |
 | Rust | ✓ | ✓ | |
 | PHP | ✓ | ✓ | |
-| Python | ✓ | — | Indentation blocks have no brace body to elide. |
-| Ruby | ✓ | — | `def…end` blocks have no brace body to elide. |
+| Python | ✓ | — | Indentation blocks have no brace body to elide. Locators and truncation markers are `#` comments (4.0.0). |
+| Ruby | ✓ | — | `def…end` blocks have no brace body to elide. Locators and truncation markers are `#` comments (4.0.0). |
 
 **Body collapse** replaces a method/function body that isn't relevant to your query with a
 `{ /* … body elided (N lines) */ }` marker, so it applies only to brace-bodied languages; Python and Ruby
@@ -79,8 +79,8 @@ everything local. See [How it works](how-it-works.md).
 ## Measuring the savings
 
 `token_report` returns cumulative token accounting per tool: **compression** — delivered tokens against
-the original size of the same files, i.e. what minimization actually removed — plus how much context was
-**searched** to find them.
+the original size of the source that came back (whole files, or the declarations delivered from a file that
+did not fit), i.e. what minimization actually removed — plus how much context was **searched** to find them.
 
 Searched tokens are reported for context and are deliberately **not** a baseline: Sankshep may read a whole
 repository to select a handful of files, and that is not context you would otherwise have sent. Counting it

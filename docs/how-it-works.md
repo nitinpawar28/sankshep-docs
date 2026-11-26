@@ -185,7 +185,7 @@ flowchart TB
 
     subgraph Sankshep["Sankshep MCP server (.NET)"]
         Tools["Tools: get_context · search_code<br/>summarize_repo · remember/recall<br/>index_repo · export_decisions · token_report"]:::server
-        Min["Minimizer<br/>tree-sitter transforms<br/>+ budget packer"]:::engine
+        Min["Minimizer<br/>tree-sitter transforms<br/>+ symbol-level budget packer<br/>(whole files, or their relevant declarations)"]:::engine
         Mem["Memory<br/>chunker · embedder · index · facts"]:::engine
     end
 
@@ -229,6 +229,7 @@ sequenceDiagram
     San->>Idx: rank the files under paths (lexical, plus semantic when an index exists)
     Note over San,Idx: Finds: LoginComponent.ts, auth.service.ts,<br/>AuthController.cs, JwtTokenService.cs
     San->>San: AST-minimize context chunks<br/>(strip comments, collapse non-target bodies)
+    San->>San: pack under tokenBudget<br/>(a file too large for what is left is cut<br/>to its relevant declarations)
     San-->>Cop: 4 ranked files (~1,900 tokens)<br/>+ header (8,400 original → 1,900 delivered)
     Cop->>Mdl: prompt + those chunks
     Mdl-->>Cop: explains the full flow, citing the real symbols
@@ -257,12 +258,12 @@ login(email: string, password: string) {
 }
 ```
 ```csharp
-// JwtTokenService.cs  — ranked 3rd, target body kept
+// JwtTokenService.cs:40-52 Issue  — ranked 3rd; the file did not fit whole, so only this declaration came back
 public string Issue(User user) {
     var claims = new[] { new Claim(ClaimTypes.NameIdentifier, user.Id) /* … */ };
     return new JwtSecurityTokenHandler().WriteToken(/* … */);
 }
-// Other 11 methods in this class collapsed to signatures — not relevant to login
+// The other 11 methods in this class were not delivered; the header's PARTIAL line names the file
 ```
 
 The model now answers with the *complete* end-to-end flow — Angular form submits to `auth.service.ts`, which POSTs to `AuthController.Login`, which validates and calls `JwtTokenService.Issue` to mint an RS256-signed JWT — **without ever seeing the ~6,500 tokens of irrelevant code** that a naive "read all the files" approach would have burned.
@@ -296,7 +297,7 @@ flowchart LR
 ```
 
 - **Lever 1 — Retrieval:** semantic search sends the 4 relevant chunks instead of 40 whole files. This is where most of the practical benefit lives, but Sankshep does **not** report it as tokens saved — sending less is trivially "cheaper", so the number would be unbounded. Whether it picked the *right* 4 is what [recall](benchmarks.md) measures.
-- **Lever 2 — Minimization:** AST transforms strip comments and collapse non-target method bodies to signatures, shrinking what remains. This is what `token_report` reports, as **compression**: delivered tokens against the original size of the same files.
+- **Lever 2 — Minimization:** AST transforms strip comments and collapse non-target method bodies to signatures, shrinking what remains. This is what `token_report` reports, as **compression**: delivered tokens against the original size of the source actually delivered — whole files, or the declarations that came back from a file that did not fit.
 
 **The token figures in this walkthrough are illustrative, not measured.** No run produced 8,400 or 1,900; they are round numbers chosen to show the shape of the two levers on a plausible four-file request, and the ~8,400 is a naive-send baseline — the four whole files you would have pasted yourself, which is the fair comparison. For figures that came out of a real run on a named codebase, with the judge's own error bar stated, see [Benchmarks](benchmarks.md): 139,841 tokens naive against 38,320 composed, a 72.6% reduction. It is *not* the same as the tokens Sankshep *searched*, which on a large repository can run to millions and is never treated as a baseline.
 

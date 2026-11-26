@@ -51,7 +51,8 @@ Withdrawing a platform people were partly using is a breaking change, which is w
     Running the image as a stdio server is **not supported**. Its entrypoint always starts the HTTP
     transport, and anything after the image name in `docker run` is appended to that entrypoint rather
     than replacing it, so `docker run -i ... serve --repo /repo` still selects the HTTP transport, not
-    stdio.
+    stdio. The working recipe, with the key and `Host` allow-list that 4.0.0 requires, is on
+    [Deployment](deployment.md#docker); point your client at the HTTP URL as on [Install](install.md#connect-over-http-remote-clients).
 
 ---
 
@@ -82,9 +83,10 @@ whole rendered prompt, and always has.
 ## What has not changed
 
 - **Tool names, arguments and result shapes** — apart from `compose_task_prompt`'s `tokenBudget` above.
-- **`get_context`'s `tokenBudget`**, which still covers the code and the header's fixed lines. It never
-  covered the header's `WARNING`, `NOTE` and `WITHHELD` lines, so a call that fills its budget can come
-  back over it; see the [tool reference](tool-reference.md#get_context).
+- **`get_context`'s `tokenBudget`**, which still covers the code and the header's fixed lines. In 3.0.0 it
+  did not cover the header's `WARNING`, `NOTE` and `WITHHELD` lines, so a call that filled its budget could
+  come back 120–150 tokens over; 4.0.0 brought those lines inside the budget — see
+  [Upgrading to 4.0.0](upgrading-4.0.md).
 - **Environment variables**, the `.sankshep/` layout, and exit codes.
 - **Zero egress by default.** The server makes no outbound calls; that is asserted by tests on every
   build, and the only component that talks to a model provider is the maintainer-run eval harness, which
