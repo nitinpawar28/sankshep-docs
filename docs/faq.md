@@ -41,9 +41,9 @@ the whole answer) cut the outline, it says so there. Raise `maxTokens`, outline 
 ## My HTML / SCSS / template files aren't in the results
 
 Sankshep minimizes and indexes the source languages on the [languages table](usage.md); the index also
-covers Markdown, manifests and `.docx`/`.pdf` documents, and `read` returns a Markdown, manifest or
-configuration file you name as written. HTML, SCSS, and framework templates are not currently indexed or
-minimized.
+covers Markdown, manifests and `.docx`/`.pdf` documents. HTML, SCSS and framework templates are not
+currently indexed or minimized, but `read` returns any text file you name, those included, as written and
+numbered.
 
 ## `read` returned nothing for a file outside my repo
 
@@ -51,14 +51,15 @@ That is deliberate, and in 2.0.0 the boundary is tighter than it was. Relative p
 served `--repo` root — a `../..` escape is refused, not read — and the refusal now says so instead of
 returning an empty result.
 
-An absolute path is **not** a general escape hatch:
+An absolute path behaves differently on the two transports:
 
 | Transport | Absolute path inside the root | Absolute path outside the root |
 |---|---|---|
-| stdio | accepted | refused |
-| HTTP | refused | refused |
+| stdio | accepted | accepted: a local client can already read the filesystem |
+| HTTP | accepted | refused |
 
-`find`'s `paths` follow the same rules. `index` refuses an absolute path on **both** transports. If you need a file that lives outside the
+`read`, `outline` and `find`'s `paths` follow this table. `index` refuses any path outside the root on
+**both** transports, because the index is keyed to the root. Over HTTP, to work with a file outside the
 repository, serve a root that contains it, or copy it in. See [Security](security.md).
 
 ## Which minimization level should I use?

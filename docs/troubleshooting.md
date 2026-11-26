@@ -45,11 +45,11 @@ writes `// WARNING: nothing matched: <p>` into its header, and when nothing at a
 it. (In earlier versions these tools resolved against the server's own working directory and could silently
 target the wrong repo; they now anchor to `--repo` and fail loudly.)
 
-**Do not reach for an absolute path — in 2.0.0 it usually will not help.** A relative value that climbs out
-of `--repo` via `..` is refused on both transports, and an absolute path is accepted only by the **stdio**
-transport and only when it points **inside** the served root. The **HTTP** transport refuses every absolute
-path, and `index` refuses one on both transports. To work with a tree outside the repository, serve a
-root that contains it.
+**An absolute path only helps on stdio.** A relative value that climbs out of `--repo` via `..` is refused
+on both transports. Over **stdio** an absolute path is honored as written, inside the served root or not.
+Over **HTTP** an absolute path is accepted only when it points inside the root. `index` refuses any path
+outside the root on both transports. To work with a tree outside the repository over HTTP, or to index it,
+serve a root that contains it.
 
 ## `index` says it indexed chunks, but a semantic `find` returns nothing {#index-built-but-search-empty}
 
@@ -216,7 +216,8 @@ reveal is refused unless the server itself sets `SANKSHEP_SECRETS=reveal`, which
 
 ## `find` mode=exact or regex lists `.sankshep/` files as "could not be read, NOT searched"
 
-**Fixed in 5.0.1**, which never walks the state directory. On 5.0.0: the state directory, `.sankshep/`, sits
+**Fixed in 5.0.1**, which never walks a directory named `.sankshep`, the default state directory. (A
+`SANKSHEP_STATE_DIR` you point inside the repository under another name is still walked; gitignore it.) On 5.0.0: the state directory, `.sankshep/`, sits
 inside the repository by default, and the server holds its databases open while it runs, so a working-tree
 scan reached those files and could not read them. That is why they appear on the "could not be read" line;
 the rest of the tree was searched normally.
