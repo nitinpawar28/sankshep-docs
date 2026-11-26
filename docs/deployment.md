@@ -54,7 +54,7 @@ docker run --rm -p 127.0.0.1:8080:8080 \
   -v sankshep-models:/models \
   -e SANKSHEP_API_KEYS="$KEY" \
   -e SANKSHEP_ALLOWED_HOSTS=localhost,127.0.0.1 \
-  ghcr.io/nitinpawar28/sankshep:v5.0.0
+  ghcr.io/nitinpawar28/sankshep:v5.0.1
 ```
 
 !!! note "Why a version and not `:latest`"

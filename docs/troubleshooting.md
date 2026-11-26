@@ -216,9 +216,11 @@ reveal is refused unless the server itself sets `SANKSHEP_SECRETS=reveal`, which
 
 ## `find` mode=exact or regex lists `.sankshep/` files as "could not be read, NOT searched"
 
-The state directory, `.sankshep/`, sits inside the repository by default, and the server holds its
-databases open while it runs, so a working-tree scan reaches those files and cannot read them. That is why
-they appear on the "could not be read" line; the rest of the tree was searched normally.
+**Fixed in 5.0.1**, which never walks the state directory. On 5.0.0: the state directory, `.sankshep/`, sits
+inside the repository by default, and the server holds its databases open while it runs, so a working-tree
+scan reached those files and could not read them. That is why they appear on the "could not be read" line;
+the rest of the tree was searched normally.
 
-The fix is the one [Security & privacy](security.md#where-state-lives-on-disk) already recommends: add
-`.sankshep/` to your `.gitignore`. It is local state, not source, and the scan then leaves it alone.
+Upgrade to 5.0.1, or add `.sankshep/` to your `.gitignore`, as
+[Security & privacy](security.md#where-state-lives-on-disk) recommends anyway: it is local state, not
+source.

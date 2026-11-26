@@ -144,9 +144,9 @@ no signature. Check that the image you pulled was produced by that workflow for 
 
 ```bash
 cosign verify \
-  --certificate-identity "https://github.com/nitinpawar28/sankshep/.github/workflows/release.yml@refs/tags/v5.0.0" \
+  --certificate-identity "https://github.com/nitinpawar28/sankshep/.github/workflows/release.yml@refs/tags/v5.0.1" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  ghcr.io/nitinpawar28/sankshep:v5.0.0
+  ghcr.io/nitinpawar28/sankshep:v5.0.1
 ```
 
 The chart is signed the same way, but its package is not yet publicly pullable (see

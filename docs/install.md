@@ -42,7 +42,7 @@ includes both. Update with `dotnet tool update -g sankshep`.
 
     ```bash
     dnx sankshep serve --repo .          # latest
-    dnx sankshep@5.0.0 serve --repo .    # pinned version
+    dnx sankshep@5.0.1 serve --repo .    # pinned version
     ```
 
 ## Point your MCP client at it

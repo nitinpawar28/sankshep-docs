@@ -1,12 +1,22 @@
 # Changelog
 
-Notable changes by release. The current release is **5.0.0**.
+Notable changes by release. The current release is **5.0.1**.
 
 !!! note "Corrected against the tags"
 
     Two entries below were previously filed under the wrong release, and the largest change in 1.6.0 was
     missing entirely. Each attribution here has been checked with `git tag --contains` against the commit
     that made it.
+
+## 5.0.1
+
+*2026-11-26 — two fixes; nothing a caller sends or parses changes.*
+
+- **`find mode=exact` and `mode=regex` no longer search Sankshep's own `.sankshep/` state directory.** In a
+  repository that did not gitignore it, every answer ended with a "could not be read, NOT searched" warning
+  naming the databases the server itself holds open. Every walk now skips `.sankshep/`, as it skips `.git/`.
+- **The `review` prompt states the base it was given**, instead of "the work against HEAD~1, which is HEAD
+  unless the user names another commit or branch".
 
 ## 5.0.0
 
