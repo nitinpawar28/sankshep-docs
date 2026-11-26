@@ -16,14 +16,15 @@ packaged fails cleanly at install rather than at runtime:
     **`sankshep.osx-x64` is not published from 3.0.0 onwards.** It existed up to 2.0.0 and should not
     have: **Microsoft.ML.OnnxRuntime ships no `osx-x64` native**, so the package installed, ran and
     answered `--version` — and then failed the first time anything needed an embedding. Over stdio
-    `index_repo` and `search_code` failed while the other six tools worked; over HTTP the server never
+    `index_repo` and `search_code` (now `index` and `find`) failed while the other six tools worked; over HTTP the server never
     became ready and answered 503 for the life of the process. It is the one platform where "fails
     cleanly at install" was never true, which is why withdrawing it is breaking rather than a cleanup.
 
     **An Intel Mac on 2.0.0 keeps working exactly as it did** — those packages stay on nuget.org,
     because published packages are immutable — but cannot install or update to 3.0.0 or later. **The
-    container image runs fully on an Intel Mac**, since it is published for `linux/amd64` — see
-    [Deployment](deployment.md). Apple Silicon is unaffected: use `osx-arm64`.
+    container image runs fully on an Intel Mac**, since it is published for `linux/amd64`; it serves the
+    HTTP transport, and the `docker run` recipe on [Deployment](deployment.md#docker) sets the key and the
+    `Host` allow-list 4.0.0 requires. Apple Silicon is unaffected: use `osx-arm64`.
 
 ```bash
 dotnet tool install -g sankshep
@@ -41,7 +42,7 @@ includes both. Update with `dotnet tool update -g sankshep`.
 
     ```bash
     dnx sankshep serve --repo .          # latest
-    dnx sankshep@3.0.0 serve --repo .    # pinned version
+    dnx sankshep@5.0.1 serve --repo .    # pinned version
     ```
 
 ## Point your MCP client at it
@@ -103,7 +104,15 @@ client to launch `sankshep serve --repo <your-repo>`.
     ```
 
     In an interactive session, Claude Code asks you to approve a project-scoped server before using it.
-    Sankshep's tools and its `compose_task_prompt` slash-command then appear in the session.
+    Sankshep's tools and its prompts (`explore`, `architect`, `review`, `implement`) then appear in the
+    session as slash-commands.
+
+!!! tip "`sankshep init` writes the registration and four agents for you"
+    Run `sankshep init` from the repository root to write the `.mcp.json` registration together with an
+    Explorer, an Architect, an Implementer and a Reviewer for VS Code Copilot, Claude Code and Cursor. It
+    never overwrites a file you edited: it skips it and exits with code 3 (`--force` overwrites). Use
+    `--dry-run` to see what would change, `--hosts` to choose clients and `--no-mcp` to leave `.mcp.json`
+    alone. See [Agents](agents.md).
 
 === "Claude Desktop / Cursor"
 
@@ -145,14 +154,17 @@ Then configure the client with a URL transport (and a bearer token if you enable
 ```
 
 Omit `headers` if the server runs in `None` auth mode on loopback. A non-loopback bind (`ASPNETCORE_URLS` set
-to a non-loopback address) with `None` auth **refuses to start** — you must configure auth (`SANKSHEP_API_KEYS`
-or `SANKSHEP_OAUTH_*`) or, on a trusted network-isolated host only, set `SANKSHEP_ALLOW_UNAUTHENTICATED=1`.
-`SANKSHEP_ALLOWED_HOSTS` is an additional Host-header hardening option, not the start gate — see
-[Security & privacy](security.md).
+to a non-loopback address) **refuses to start** unless you configure both of these: an authentication choice
+— `SANKSHEP_API_KEYS` or `SANKSHEP_OAUTH_*`, or, on a trusted network-isolated host only,
+`SANKSHEP_ALLOW_UNAUTHENTICATED=1` — and, since 4.0.0, `SANKSHEP_ALLOWED_HOSTS` naming the hosts clients use
+(or `*` to accept any `Host` deliberately). Every API key must be at least 32 characters
+(`openssl rand -hex 32`). The allow-list does not satisfy the auth gate, and the auth gate does not satisfy
+the allow-list — see [Security & privacy](security.md) and [Troubleshooting](troubleshooting.md).
 
 ## Environment variables
 
-All optional. Defaults keep Sankshep local-only with no telemetry. See
+All optional on the stdio and loopback paths; a routable `--http` bind needs an auth choice and a `Host`
+allow-list. Defaults keep Sankshep local-only with no telemetry. See
 [Environment variables](environment.md) for the full reference with grouping and notes.
 
 | Variable | Purpose | Default |
@@ -160,17 +172,18 @@ All optional. Defaults keep Sankshep local-only with no telemetry. See
 | `SANKSHEP_STATE_DIR` | Where per-repo state (`facts/index/stats.db`) is written | `<repo>/.sankshep` |
 | `SANKSHEP_MODEL_DIR` | Embedding-model cache location | per-user default |
 | `SANKSHEP_MODEL_OFFLINE` | `1` = never attempt the model download (air-gap; side-load first) | off |
+| `SANKSHEP_SECRETS` | `reveal` = return secret values from every `read` and `find` (the only way to see them over HTTP) | unset (masked as `[MASKED len=N]`) |
 | `SANKSHEP_WATCH` | `1` = watch the working tree and keep the index fresh automatically | off |
 | `SANKSHEP_DISABLE_VEC0` | `1` = disable the sqlite-vec native path (pure-C# vector fallback) | off |
 | `SANKSHEP_OTLP_ENDPOINT` | Enable OTLP metric export to this collector (opt-in) | unset (no export) |
 | `SANKSHEP_PROMETHEUS` | `1` = expose the `/metrics` scrape endpoint (opt-in) | off |
 | `SANKSHEP_FLEET_TEAM` / `SANKSHEP_FLEET_INSTANCE` | Optional low-cardinality labels on exported metrics | unset |
 | `ASPNETCORE_URLS` | HTTP bind address(es) | `http://127.0.0.1:8080` |
-| `SANKSHEP_ALLOWED_HOSTS` | `Host`-header allow-list, compared whole with the port ignored. Enforced in the pipeline, so health probes stay reachable whatever it says. | loopback names on a loopback bind; **empty on any other bind**, which accepts no `Host` |
+| `SANKSHEP_ALLOWED_HOSTS` | `Host`-header allow-list, compared whole with the port ignored; `*` accepts any `Host` deliberately and cannot be combined with names. Enforced in the pipeline, so health probes stay reachable whatever it says. | loopback names on a loopback bind; **required on any other bind** — unset or blank refuses to start (4.0.0) |
 | `SANKSHEP_ALLOWED_ORIGINS` | `Origin` allow-list for browser callers. A request with no `Origin` is unaffected. | empty (no cross-origin request accepted) |
 | `SANKSHEP_ALLOW_UNAUTHENTICATED` | `1` = explicitly permit an unauthenticated non-loopback bind (trusted, network-isolated hosts only) | off — server fails closed on a non-loopback bind with no auth |
-| `SANKSHEP_API_KEY` / `SANKSHEP_API_KEYS` | Bearer key(s) for ApiKey auth mode (HTTP) | unset (no key auth) |
-| `SANKSHEP_OAUTH_AUTHORITY` / `_AUDIENCE` / `_RESOURCE` / `_SCOPES` | OAuth 2.1 resource-server validation (HTTP) | unset (OAuth off) |
+| `SANKSHEP_API_KEY` / `SANKSHEP_API_KEYS` | Bearer key(s) for ApiKey auth mode (HTTP); each at least 32 characters, or the server refuses to start (4.0.0) | unset (no key auth) |
+| `SANKSHEP_OAUTH_AUTHORITY` / `_AUDIENCE` / `_RESOURCE` / `_SCOPES` | OAuth 2.1 resource-server validation (HTTP). `_AUTHORITY` and `_AUDIENCE` together or not at all; one alone refuses to start (4.0.0) | unset (OAuth off) |
 
 ## First run
 

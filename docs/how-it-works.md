@@ -133,9 +133,11 @@ The key symmetry: **from the tool's point of view, Copilot Chat and Claude Deskt
 
 The Model Context Protocol (MCP) is a standard, JSON-RPC-based way for clients to expose **tools** to models. The crucial thing to understand is the division of responsibility — and one fact that surprises people:
 
-> **The MCP server never sends instructions to the model.** The MCP server only provides tool definitions — but never includes actual pre-instructions for the LLM. This is intentional: the system prompt must come from the client who is orchestrating the conversation.
+> **The MCP server does not write the system prompt.** It provides tool definitions, and it may offer short *server instructions* when the client connects — but the client decides what reaches the model. This is intentional: the system prompt must come from the client who is orchestrating the conversation.
 
-So how does the model "know" to call Sankshep? Through the tool *descriptions*. When agents connect to an MCP server, the tools metadata — an array with names, parameter schemas, and descriptions — is fetched via `tools/list` and placed directly into the model's context as tokens, alongside your prompt. There is no separate per-tool embedding step; the model predicts which tool fits the request by attending to those in-context descriptions. This is why high-quality tool names, descriptions, and parameter descriptions matter so much when building MCP tools.
+Since 5.0.0 Sankshep offers such instructions in its `initialize` response: orient with `outline`, locate with `find` (`mode=exact` or `mode=regex` instead of grep), read with `read` and its `path:start-end` ranges before an edit, and cite from the `N|` prefix on every line. Whether they reach the model is the client's choice.
+
+So how does the model "know" to call Sankshep? Mainly through the tool *descriptions*. When agents connect to an MCP server, the tools metadata — an array with names, parameter schemas, and descriptions — is fetched via `tools/list` and placed directly into the model's context as tokens, alongside your prompt. There is no separate per-tool embedding step; the model predicts which tool fits the request by attending to those in-context descriptions. This is why high-quality tool names, descriptions, and parameter descriptions matter so much when building MCP tools.
 
 And to be precise about "deciding": the LLM isn't deciding in the human sense — it's predicting tool-call tokens when they appear appropriate, given the prompt, chat history, tool descriptions, and system guidelines.
 
@@ -154,11 +156,11 @@ sequenceDiagram
     participant S as Sankshep (MCP server)
 
     Note over Client,S: On startup, client connects and calls tools/list
-    S-->>Client: tool definitions (get_context, search_code, …)
+    S-->>Client: tool definitions (read, find, outline, …)
     U->>Client: "How does auth work in this repo?"
     Client->>Model: prompt + conversation + tool definitions
-    Model-->>Client: "Call get_context(query, tokenBudget, paths)"
-    Client->>S: tools/call get_context {query, tokenBudget}
+    Model-->>Client: "Call read(query, tokenBudget, paths)"
+    Client->>S: tools/call read {query, tokenBudget}
     S-->>Client: minimized, ranked context + savings report
     Client->>Model: prompt + tool results
     Model-->>Client: final answer grounded in that context
@@ -184,8 +186,8 @@ flowchart TB
     IDE["Copilot Chat · Claude Code<br/>Claude Desktop · Cursor"]:::client
 
     subgraph Sankshep["Sankshep MCP server (.NET)"]
-        Tools["Tools: get_context · search_code<br/>summarize_repo · remember/recall<br/>index_repo · export_decisions · token_report"]:::server
-        Min["Minimizer<br/>tree-sitter transforms<br/>+ budget packer"]:::engine
+        Tools["Tools: read · find · outline<br/>index · remember/recall · report<br/>Prompts: explore · architect · review · implement"]:::server
+        Min["Minimizer<br/>tree-sitter transforms<br/>+ symbol-level budget packer<br/>(whole files, or their relevant declarations)"]:::engine
         Mem["Memory<br/>chunker · embedder · index · facts"]:::engine
     end
 
@@ -224,11 +226,12 @@ sequenceDiagram
 
     Dev->>Cop: "How does login work, Angular form → API JWT?"
     Cop->>Mdl: prompt + Sankshep tool definitions
-    Mdl-->>Cop: call get_context(query="login flow Angular form to JWT", tokenBudget=6000,<br/>paths=["src/api", "src/app/auth"])
-    Cop->>San: tools/call get_context {…}
+    Mdl-->>Cop: call read(query="login flow Angular form to JWT", tokenBudget=6000,<br/>paths=["src/api", "src/app/auth"])
+    Cop->>San: tools/call read {…}
     San->>Idx: rank the files under paths (lexical, plus semantic when an index exists)
     Note over San,Idx: Finds: LoginComponent.ts, auth.service.ts,<br/>AuthController.cs, JwtTokenService.cs
     San->>San: AST-minimize context chunks<br/>(strip comments, collapse non-target bodies)
+    San->>San: pack under tokenBudget<br/>(a file too large for what is left is cut<br/>to its relevant declarations)
     San-->>Cop: 4 ranked files (~1,900 tokens)<br/>+ header (8,400 original → 1,900 delivered)
     Cop->>Mdl: prompt + those chunks
     Mdl-->>Cop: explains the full flow, citing the real symbols
@@ -237,7 +240,7 @@ sequenceDiagram
 
 ### What Sankshep actually returned (illustrative)
 
-Instead of dumping four whole files, Sankshep sent a compact, ranked bundle. For the Angular side it kept the relevant method signatures and the specific call that hits the API; for the .NET side it kept the controller action and the token-signing method body (the *target* of the question), while collapsing unrelated methods to signatures:
+Instead of dumping four whole files, Sankshep sent a compact, ranked bundle (the real response also prefixes every line with `N|`, its source line number, which the excerpts below leave out for readability). For the Angular side it kept the relevant method signatures and the specific call that hits the API; for the .NET side it kept the controller action and the token-signing method body (the *target* of the question), while collapsing unrelated methods to signatures:
 
 ```csharp
 // AuthController.cs  — ranked 1st, kept in full
@@ -257,12 +260,12 @@ login(email: string, password: string) {
 }
 ```
 ```csharp
-// JwtTokenService.cs  — ranked 3rd, target body kept
+// JwtTokenService.cs:40-52 Issue  — ranked 3rd; the file did not fit whole, so only this declaration came back
 public string Issue(User user) {
     var claims = new[] { new Claim(ClaimTypes.NameIdentifier, user.Id) /* … */ };
     return new JwtSecurityTokenHandler().WriteToken(/* … */);
 }
-// Other 11 methods in this class collapsed to signatures — not relevant to login
+// The other 11 methods in this class were not delivered; the header's PARTIAL line names the file
 ```
 
 The model now answers with the *complete* end-to-end flow — Angular form submits to `auth.service.ts`, which POSTs to `AuthController.Login`, which validates and calls `JwtTokenService.Issue` to mint an RS256-signed JWT — **without ever seeing the ~6,500 tokens of irrelevant code** that a naive "read all the files" approach would have burned.
@@ -296,7 +299,7 @@ flowchart LR
 ```
 
 - **Lever 1 — Retrieval:** semantic search sends the 4 relevant chunks instead of 40 whole files. This is where most of the practical benefit lives, but Sankshep does **not** report it as tokens saved — sending less is trivially "cheaper", so the number would be unbounded. Whether it picked the *right* 4 is what [recall](benchmarks.md) measures.
-- **Lever 2 — Minimization:** AST transforms strip comments and collapse non-target method bodies to signatures, shrinking what remains. This is what `token_report` reports, as **compression**: delivered tokens against the original size of the same files.
+- **Lever 2 — Minimization:** AST transforms strip comments and collapse non-target method bodies to signatures, shrinking what remains. This is what `report` reports, as **compression**: delivered tokens against the original size of the source actually delivered — whole files, or the declarations that came back from a file that did not fit.
 
 **The token figures in this walkthrough are illustrative, not measured.** No run produced 8,400 or 1,900; they are round numbers chosen to show the shape of the two levers on a plausible four-file request, and the ~8,400 is a naive-send baseline — the four whole files you would have pasted yourself, which is the fair comparison. For figures that came out of a real run on a named codebase, with the judge's own error bar stated, see [Benchmarks](benchmarks.md): 139,841 tokens naive against 38,320 composed, a 72.6% reduction. It is *not* the same as the tokens Sankshep *searched*, which on a large repository can run to millions and is never treated as a baseline.
 

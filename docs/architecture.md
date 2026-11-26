@@ -9,7 +9,7 @@ implementation.)
 Sankshep lives entirely in the **tools** layer of the MCP world. The **client** (Copilot, Claude Code,
 Cursor…) orchestrates; the **model** reasons; Sankshep — a tool server — does the actual work of
 retrieving and minimizing context. Because it speaks the standard protocol, **one build works across
-every MCP client and model**. It exposes **eight MCP tools, one prompt and one resource** — the full
+every MCP client and model**. It exposes **seven MCP tools, four prompts and one resource** — the full
 surface is documented in the [Tool reference](tool-reference.md). See [How it works](how-it-works.md)
 for the full picture.
 
@@ -17,7 +17,7 @@ for the full picture.
 
 The load-bearing product promise: **local-only, no repo content or telemetry leaves your machine by
 default.** The one outbound exception is a one-time, checksum-verified download of the public embedding
-model on the first `index_repo`/`search_code` (no repo content is sent) — disableable for air-gapped use
+model on the first `index`/semantic `find` (no repo content is sent) — disableable for air-gapped use
 with `SANKSHEP_MODEL_OFFLINE=1` + `SANKSHEP_MODEL_DIR`.
 
 - Embeddings run on-device (ONNX Runtime); vector search is `sqlite-vec` with a pure-C# fallback.
@@ -65,14 +65,21 @@ protocol adapter is confined to one project.
 
 - **tree-sitter over a language-specific parser** — one incremental, multi-language parsing engine for
   AST-aware minimization.
+- **symbol-level packing** (4.0.0) — a file that does not fit what is left of the budget is cut at its
+  declarations, so the budget goes to what the query is about rather than to the top of a big file. Each piece
+  is credited with its own source span, never the whole file, so compression cannot inflate.
+- **a working-tree scan beside the index** (5.0.0) — `find`'s `exact`, `regex` and `symbol` modes read the
+  working tree as it is now and need no index, so locating an identifier never waits on, or trusts, a stale
+  index; only the semantic mode uses the embeddings.
 - **local ONNX embeddings over a cloud API** — offline, private, no per-query network or cost.
 - **`sqlite-vec` over a vector database** — a single embedded file, no service to run, with a pure-C#
   brute-force fallback.
 - **working-tree-as-truth freshness** — the index tracks your working tree file by file: verify-on-read,
-  which re-indexes changed files and prunes deleted ones on every search, plus an optional watcher
+  which re-indexes changed files and prunes deleted ones on every semantic search (since 4.0.0 at most 25 changed files
+  per search, with a header note counting any it left stale), plus an optional watcher
   (`SANKSHEP_WATCH=1`) that, once a burst of changes settles, runs an incremental index over the served
   root, which picks up new files too. There is **no branch-aware re-index**: the index never reads git
-  HEAD (memory does, to tag each fact with the current branch). Without the watcher, re-run `index_repo`
+  HEAD (memory does, to tag each fact with the current branch). Without the watcher, re-run `index`
   after a branch switch or anything else that adds files, because verify-on-read refreshes only files that
   are already indexed.
 - **evals drive the real server as a subprocess** — the benchmark harness treats the shipped binary as a
