@@ -2,24 +2,26 @@
 
 *Grounding any coding prompt in minimized code context + remembered project conventions — in one shot.*
 
-`compose_task_prompt` is an MCP **prompt** that, given a task description, assembles a single grounded,
+`implement` is an MCP **prompt** that, given a task description, assembles a single grounded,
 well-structured prompt by combining two things Sankshep already produces: **relevance-ranked,
-AST-minimized code** (via `get_context`) and **remembered project conventions** (via `recall`). It
-returns that prompt in **one shot**, for the model to act on.
+AST-minimized code** (via `read`) and **remembered project conventions** (via `recall`). It
+returns that prompt in **one shot**, for the model to act on. Before 5.0.0 it was called
+`compose_task_prompt`; it takes the same arguments. It is one of four prompts: `explore`, `architect` and
+`review` start the other workflows, which `sankshep init` can also install as [agents](agents.md).
 
 The framing that governs this whole page: **the composer grounds a prompt in minimized-context + memory
 — it does not *generate* the prompt's intent, and it never generates the answer.**
 
 **Three claims, and they are not equally well supported — see [Benchmarks](benchmarks.md).** Every number
-below was measured on 3.0.0 (2026-09-20) and has not been re-measured for 4.0.0, which changed the engine the
-composer wraps; the figures are not evidence about 4.0.0 in either direction.
+below was measured on 3.0.0 (2026-09-20) and has not been re-measured for 4.0.0 or 5.0.0, both of which
+changed the engine the composer wraps; the figures are not evidence about either in either direction.
 
 1. **Fewer roundtrips** — a grounded first prompt is meant to remove the "let me look around the
    codebase first" turns. **Not measured.** A single-shot harness cannot see roundtrips; it needs an
    agent simulation, which does not exist yet. Treat this as the design intent, not a result.
 2. **Higher accuracy** — grounding in the *actual* code and conventions is meant to stop the model
    inventing patterns the project does not use. **Measured, and the honest answer is parity, not a
-   gain.** The composer is a wrapper around `get_context`, and it scored 0.51 mean key-point recall
+   gain.** The composer is a wrapper around the engine behind `read` (`get_context` in 3.0.0), and it scored 0.51 mean key-point recall
    against that engine's 0.66 on the same questions at the same budgets, because it was spending part of
    the caller's token budget on remembered conventions. That is fixed — it now reaches 0.66–0.68, level
    with the engine. Against an uncapped dump of every raw file it is 0.66 against 1.00.
@@ -35,10 +37,10 @@ roughly two thirds of the facts, in one grounded prompt instead of several explo
 Copilot prompt files are the **template layer** (author-time, static). Sankshep is the **grounding
 layer** (request-time, dynamic).
 
-| | **Copilot prompt files** (`.prompt.md`) | **Sankshep composer** (`compose_task_prompt`) |
+| | **Copilot prompt files** (`.prompt.md`) | **Sankshep composer** (`implement`) |
 |---|---|---|
 | **Who writes the body** | You, at author-time (a reusable template) | Assembled at request-time from your one-line task |
-| **Where code context comes from** | Placeholders / `#file` / untuned `@workspace` | Relevance-ranked, **AST-minimized** code from `get_context` |
+| **Where code context comes from** | Placeholders / `#file` / untuned `@workspace` | Relevance-ranked, **AST-minimized** code from `read` |
 | **Where conventions come from** | A hand-maintained `copilot-instructions.md` | **Cross-session `recall`** memory |
 | **Static vs. dynamic** | Static until you edit the file | Dynamic — reflects the code + memory *now* |
 | **Layer** | Template layer (the prompt's shape) | Grounding layer (the prompt's substance) |
@@ -76,9 +78,9 @@ reasons:
 
 ```mermaid
 flowchart TB
-    U["You: /compose_task_prompt<br/>task: 'add rate limiting to the login endpoint'<br/>paths: src/Api/Auth, src/Api/Program.cs"]
+    U["You: /implement<br/>task: 'add rate limiting to the login endpoint'<br/>paths: src/Api/Auth, src/Api/Program.cs"]
     subgraph S["Sankshep — deterministic, no LLM"]
-        GC["get_context → minimized Login endpoint + middleware"]
+        GC["read → minimized Login endpoint + middleware"]
         RC["recall → 'use RateLimiting middleware, 429 + Retry-After'"]
         CMP["composer: pack under budget<br/>Task / Code / Conventions / Constraints"]
     end
@@ -95,7 +97,7 @@ flowchart TB
 flowchart LR
     PF[".github/prompts/feature.prompt.md<br/>front-matter: tools: ['sankshep/*']"]
     CP["Copilot Chat (template layer)"]
-    SK["Sankshep grounding: get_context + recall"]
+    SK["Sankshep grounding: read + recall"]
     MO["Model acts on template + grounding"]
     PF --> CP
     CP -->|invokes grounding via tools:| SK
@@ -109,10 +111,12 @@ Four labelled sections, assembled deterministically under a token budget that bo
 conventions:
 
 - **Task** — your one-line intent, verbatim.
-- **Relevant code** — AST-minimized, ranked snippets from `get_context`, each under a `// path:start-end`
-  locator. Since 4.0.0 a file that does not fit the budget arrives as its most relevant declarations, each
-  cited `// path:start-end Symbol`. The composed prompt carries none of `get_context`'s header lines, so the
-  line ranges on those locators are the only sign that a file is incomplete.
+- **Relevant code** — AST-minimized, ranked snippets from `read`, each under a `// path:start-end`
+  locator, with an elided body marked `{ /* L18-21 elided */ }` by the source lines it stands for. Since
+  4.0.0 a file that does not fit the budget arrives as its most relevant declarations, each cited
+  `// path:start-end Symbol`. The composed prompt carries none of `read`'s header lines and its code lines
+  are not `N|`-numbered; since 5.0.0 it says instead what it could not include — files withheld, cut,
+  unreadable or skipped, named one by one, and conventions over their budget.
 - **Project conventions** — facts remembered under the **`convention`** category, branch-scoped, deduped,
   most-recent-first. Only that category: a fact filed as `decision`, `gotcha` or anything else is never
   injected here, however relevant it looks. When the section is empty it says so, and names the categories
@@ -153,26 +157,26 @@ middleware pattern and the 429/Retry-After contract, with no exploratory roundtr
 The composer is **deterministic assembly of retrieved material**. It **does not** generate code, call an
 LLM, or orchestrate a solution — and it takes **no dependency on any model client** (a build-time test
 enforces this, so the boundary can't erode). Given fixed inputs it produces byte-identical output: the
-*retrieved* material (Relevant code / Project conventions) traces back to `get_context` / `recall`, while
+*retrieved* material (Relevant code / Project conventions) traces back to `read` / `recall`, while
 Task is your input verbatim and Constraints are fixed guardrails — so the whole prompt is deterministic and
 auditable.
 
 ## Using it
 
 !!! note "Arguments"
-    `compose_task_prompt` takes **`task`** (your one-line intent) and **`paths`** — the file or directory
+    `implement` takes **`task`** (your one-line intent) and **`paths`** — the file or directory
     paths to draw code context from, comma- or newline-separated. `paths` is **required**, and
-    `compose_task_prompt` never returns a prompt with an empty code section: with no paths supplied it
+    `implement` never returns a prompt with an empty code section: with no paths supplied it
     returns an error saying so, and when nothing under them can be delivered it returns an error naming the
     cause — nothing matched, no supported source file, or a `tokenBudget` too small to admit any code.
     **`tokenBudget`**
     is optional and defaults to **4000**, and **bounds the code**. Remembered conventions are additive,
     with their own budget of 600 tokens, so the prompt you get back is larger than the number you
     passed — by the conventions section plus the template's own text. Changed in 3.0.0; before that the
-    budget was split ~70/30, which cost the composer 0.15 of key-point recall against `get_context` at
+    budget was split ~70/30, which cost the composer 0.15 of key-point recall against the read engine at
     the same number.
 
-- **As Sankshep's MCP prompt:** clients that surface prompts expose `compose_task_prompt` as a
+- **As Sankshep's MCP prompt:** clients that surface prompts expose `implement` as a
   slash-command — supply the task and the paths, get the grounded prompt.
 - **Under a Copilot prompt file:** a committed `.github/prompts/*.prompt.md` references Sankshep's
   grounding tools via `tools:`, and Copilot merges the result — the template layer calling the grounding

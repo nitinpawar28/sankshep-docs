@@ -156,7 +156,7 @@ to anyone watching a container restart loop. It is now **one line on stderr and 
 - **`get_context`'s `tokenBudget` covers the header's fixed lines as well as the code**, and a file larger
   than the budget is truncated rather than dropped whole. In 2.0.0 and 3.0.0 the header's `WARNING`, `NOTE`
   and `WITHHELD` lines were not covered, so a call that filled its budget could come back over it; 4.0.0
-  brought them inside the budget — see the [tool reference](tool-reference.md#get_context).
+  brought them inside the budget — see the [tool reference](tool-reference.md#read) (`read` since 5.0.0).
 - **Raising the log level cannot print your code.** See [Environment variables](environment.md#logging).
 - **`appsettings.json` in a served repository is ignored** on both transports. If you were configuring
   Sankshep that way, move those settings to environment variables — but note that a repo-root

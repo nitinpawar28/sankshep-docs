@@ -1,12 +1,82 @@
 # Changelog
 
-Notable changes by release. The current release is **4.0.0**.
+Notable changes by release. The current release is **5.0.0**.
 
 !!! note "Corrected against the tags"
 
     Two entries below were previously filed under the wrong release, and the largest change in 1.6.0 was
     missing entirely. Each attribution here has been checked with `git tag --contains` against the commit
     that made it.
+
+## 5.0.0
+
+*2026-11-26 — a clean break: the tool surface is redesigned, every tool is renamed, and none of the old
+names is kept as an alias.* See [Upgrading to 5.0.0](upgrading-5.0.md). `index.db` is rebuilt once on the
+first start after upgrading.
+
+### Migrating from 4.x
+
+| 4.x | 5.0.0 | What to change |
+|---|---|---|
+| `get_context(paths, query, tokenBudget, level)` | `read(paths, query, tokenBudget, level, symbols, secrets, lineNumbers)` | Rename the call. Lines now carry an `N|` prefix; pass `lineNumbers=false` to drop it. A path may end in `:start-end` |
+| `search_code(query, topK)` | `find(query, mode, paths, glob, caseSensitive, maxResults, contextLines, secrets)` | Rename the call, and `topK` to `maxResults`. `mode=semantic` is the default and is the old search |
+| `summarize_repo(path, maxTokens)` | `outline(path, maxTokens, include)` | Rename the call. `maxTokens` now defaults to 4,000 and bounds the whole answer |
+| `index_repo(path, force)` | `index(path, force)` | Rename the call. Allow for one full re-index on the first start |
+| `token_report()` | `report(window, format)` | Rename the call. Read `format=json` if a program parses it |
+| `export_decisions()` | `recall(format=markdown)` | Write the returned `markdown` field to `DECISIONS.md` yourself |
+| `compose_task_prompt(task, paths, tokenBudget)` | `implement(task, paths, tokenBudget)` | Rename the prompt |
+| no agent files | `sankshep init` | Run it once per repository to get the four agents and the `.mcp.json` entry |
+| secrets returned as written | masked as `[MASKED len=N]` | Pass `secrets=reveal` (stdio) or set `SANKSHEP_SECRETS=reveal` when you need the values |
+
+### Breaking changes
+
+- **`get_context` is now `read`.** Every line is numbered by its source line (`N|`), so an answer can cite
+  `path:N` without reading the file again; `path:12-40` returns those exact lines unminimized; a named
+  Markdown, manifest or config file comes back as written instead of being skipped; `symbols` keeps named
+  bodies whole. Rename the call, and drop any parsing of the old header, which now begins
+  `// ---- Sankshep read`.
+- **Secret values are masked by default.** `read` replaces them with `[MASKED len=N]`, keeps the rest of a
+  connection string, and lists every masked value by file, line and key. Pass `secrets="reveal"` (stdio) or
+  set `SANKSHEP_SECRETS=reveal` on the server to see them.
+- **Balanced keeps the bodies the query is most about**, at most twelve per file, instead of every body that
+  mentions any query word; the elision marker is ASCII and cites source lines, `{ /* L12-40 elided */ }`.
+- **`search_code` is now `find`.** `mode=exact` and `mode=regex` scan the working tree — use them instead of
+  grep — and `mode=symbol` finds where a type or method is declared; none of the three needs an index.
+  `mode=semantic` (the default) is the old search. `topK` is now `maxResults`. Every hit is numbered `N|`
+  and masked.
+- **`index_repo` is now `index`**, and the index covers Markdown and manifests, masks secrets before storing
+  anything, and windows long document sections. **`index.db` is rebuilt once** on the first start after
+  upgrading: allow for one full re-index.
+- **`summarize_repo` is now `outline`.** It leads with an inventory of the projects, packages, scripts,
+  images and pipelines under the directory, each cited by line, then the declarations, each with its line.
+  `maxTokens` (default now 4,000) is a ceiling on the whole answer: over it, the outline is cut at a line and
+  says so on its second line.
+- **`export_decisions` is removed.** `recall format=markdown` returns the `DECISIONS.md` text; write it where
+  you want it. No tool overwrites a file in your repository any more.
+- **`token_report` is now `report`.** Every tool and prompt call is recorded, one row per call, with its
+  outcome, time and the tokens it returned; `report(window, format)` shows them for this session, the last
+  24 hours, the last 7 days or all time, as text or JSON, with the compression claim kept apart. `stats.db`
+  moves to schema 3 on first start; 4.x totals are kept as legacy and shown on their own line, never added
+  in. An unreadable `stats.db` is now an error from `report`, `sankshep://stats` and `/api/stats` (503)
+  instead of zeros.
+- **`compose_task_prompt` is now `implement`**, with the same arguments. Its prompt now says what it could
+  not include — files withheld, cut, unreadable or skipped, named one by one, and conventions over their
+  budget — where before it carried only the code that arrived.
+
+### Added
+
+- **`sankshep report --repo <path>`** prints the report without an MCP client, reading a copy of `stats.db`
+  so nothing in the state directory changes.
+- **Agents out of the box: `sankshep init`.** Writes an Explorer, an Architect, an Implementer and a Reviewer
+  for VS Code Copilot, Claude Code and Cursor, a section of `AGENTS.md`, and the `.mcp.json` registration.
+  The agents read and search through Sankshep rather than the shell. A file you edited is never overwritten
+  (exit 3 says one was skipped; `--force` overwrites); `--dry-run` shows what would change. See
+  [Agents](agents.md).
+- **Prompts `explore`, `architect` and `review`** start the same workflows from any client that offers MCP
+  prompts.
+- **Server instructions.** `initialize` now tells the client how to use Sankshep: `find` instead of grep,
+  `read path:a-b` before an edit, cite from the `N|` prefixes.
+- **A hint when input is piped to a bare `sankshep`**, naming `sankshep serve --repo <path>`.
 
 ## 4.0.0
 

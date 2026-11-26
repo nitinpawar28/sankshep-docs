@@ -24,6 +24,7 @@ ignores them.
 | `SANKSHEP_WATCH` | `1` enables a filesystem watcher that debounces changes and refreshes the index in the background. Off, freshness is maintained verify-on-read. | off |
 | `SANKSHEP_DISABLE_VEC0` | `1` forces the pure-C# brute-force vector store instead of the native sqlite-vec `vec0` extension (test seam / ops escape hatch). | off (native `vec0` when available) |
 | `SANKSHEP_WARM_MODEL` | **Opt-out, unlike everything else here.** `0` drops the embedding model from the readiness gate, so `/health/ready` returns 200 before the model is loaded. Only the exact string `0` disables it. | **on** |
+| `SANKSHEP_SECRETS` | `reveal` returns secret values as written from every `read` and `find` call, for troubleshooting; the response header says it did. Unset, values come back as `[MASKED len=N]` and a caller over **stdio** may still pass `secrets="reveal"` on one call; over **HTTP** only this variable reveals them (5.0.0). | unset (masked) |
 | `SANKSHEP_MAX_FILE_BYTES` | Source-file size cap. `0` disables the cap. A value that cannot be parsed falls back to the default, never to "no limit". | 2 MiB |
 
 ## HTTP transport & authentication (`--http`)
@@ -84,7 +85,7 @@ silencing the rest:
 |---|---|
 | `Sankshep.Minimizer.ContextMinimizer` | Paths skipped: too large, or linking outside the served root. |
 | `Sankshep.Memory.SqliteVectorIndex` | Files skipped during indexing, and why. |
-| `Sankshep.Memory.SavingsStatsStore` | `token_report` statistics degraded or reset. **Warning.** |
+| `Sankshep.Memory.SavingsStatsStore` | `report` statistics degraded or reset. **Warning.** |
 | `Sankshep.Server.Hosting.ReadinessWarmupService` | Why readiness is holding at 503. **Error.** |
 | `Microsoft.AspNetCore` | The framework's per-request lines. **Held at Warning by default.** |
 | `ModelContextProtocol` | The MCP SDK. **Capped at Information, and not raisable.** |

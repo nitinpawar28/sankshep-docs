@@ -12,7 +12,7 @@ The **only** outbound network activity is:
 
 | Activity | When | What is sent |
 |---|---|---|
-| Embedding-model download | First `index_repo`/`search_code`, unless side-loaded | A checksum-verified request for the public model files — **no repo content**. Suppress with `SANKSHEP_MODEL_OFFLINE=1` + `SANKSHEP_MODEL_DIR`. |
+| Embedding-model download | First `index`/semantic `find`, unless side-loaded | A checksum-verified request for the public model files — **no repo content**. Suppress with `SANKSHEP_MODEL_OFFLINE=1` + `SANKSHEP_MODEL_DIR`. |
 | Telemetry export | **Only** if you set `SANKSHEP_OTLP_ENDPOINT` | Counts and histograms with a low-cardinality repo tag (the folder name), plus ASP.NET Core's own HTTP server metrics under `--http` — **never** file paths, queries, or code. To a collector **you** run. |
 
 There is **no telemetry by default** and no dollar/billing phone-home — Sankshep is never told which model you
@@ -26,8 +26,8 @@ download is a one-time inbound fetch of public files, and it is disableable for 
 
 !!! success "Proven, not just asserted"
     A [continuous-integration air-gap job](#hardening-verified-posture) runs the server on a **no-egress
-    network** and confirms `summarize_repo`, `index_repo`, and `search_code` all work with outbound traffic
-    physically blocked — and a socket-level test asserts `get_context` opens **zero** outbound connections.
+    network** and confirms `outline`, `index`, and `find` all work with outbound traffic
+    physically blocked — and a socket-level test asserts `read` opens **zero** outbound connections.
 
 ## Where state lives on disk
 
@@ -36,14 +36,17 @@ Per-repo state is written under `<repo>/.sankshep/` (override the location with 
 | File | Written by | Contents |
 |---|---|---|
 | `facts.db` | `remember` | Your remembered facts + their git-branch tags and optional source. |
-| `index.db` | `index_repo` | Code chunks and their local embedding vectors. |
-| `stats.db` | `get_context`, `compose_task_prompt` | Per-tool token counts (no code, no paths). |
+| `index.db` | `index` | Code, document and manifest chunks and their local embedding vectors; secret values are masked before anything is stored (5.0.0). |
+| `stats.db` | every tool and prompt call | One row per call — the tool, its outcome, its time and the tokens it returned — plus the compression claim (no code, no paths). |
 
 The embedding model is cached under `SANKSHEP_MODEL_DIR` (or a default per-user location). None of this is
-transmitted; deleting `.sankshep/` resets a repo's index, memory, and stats.
+transmitted; deleting `.sankshep/` resets a repo's index, memory, and stats. Since 5.0.0 no tool overwrites a
+file in your repository: `recall format=markdown` returns `DECISIONS.md` text for you to save.
 
 !!! note "Add `.sankshep/` to your `.gitignore`"
-    It's local state, not source. Keep `facts.db`/`index.db`/`stats.db` out of version control.
+    It's local state, not source. Keep `facts.db`/`index.db`/`stats.db` out of version control. It also
+    keeps `find`'s `exact` and `regex` scans out of the state directory, whose databases the server holds
+    open — see [Troubleshooting](troubleshooting.md).
 
 ## Network exposure (HTTP mode)
 
@@ -76,12 +79,12 @@ These controls are enforced in code and covered by tests/CI:
 |---|---|
 | **Egress** | No repo content leaves the host; socket-level test + no-egress air-gap CI prove it. |
 | **Telemetry** | Off by default; opt-in only; counts + folder-name tag, never paths/queries/code. |
-| **Path scope** | Containment covers **all three path-taking tools** — `get_context`, `summarize_repo` and `index_repo` — not just one. A `../..` escape is rejected, a rooted-but-not-fully-qualified path such as `/etc` is resolved against the repo root rather than taken literally, and a symlink or junction whose target leaves the root is **skipped rather than followed**. Since 4.0.0 a named path is resolved link by link to where it really lands before it is read, so a link **anywhere along it** — a directory named in `paths` that links out, a file beneath one, or a link whose target passes through another outbound link — is refused as escaping the served root, and the index drops a stored key that a later checkout has put behind an outbound link. On the HTTP transport the absolute-path carve-out is refused outright. |
+| **Path scope** | Containment covers **every path-taking tool** — `read`, `outline`, `index` and `find`'s `paths` — not just one. A `../..` escape is rejected, a rooted-but-not-fully-qualified path such as `/etc` is resolved against the repo root rather than taken literally, and a symlink or junction whose target leaves the root is **skipped rather than followed**. Since 4.0.0 a named path is resolved link by link to where it really lands before it is read, so a link **anywhere along it** — a directory named in `paths` that links out, a file beneath one, or a link whose target passes through another outbound link — is refused as escaping the served root, and the index drops a stored key that a later checkout has put behind an outbound link. On the HTTP transport the absolute-path carve-out is refused outright. |
 | **SQL** | All SQLite access (facts, vectors, stats) uses bound parameters — no string-built queries. |
 | **Deserialization** | Typed YAML/JSON only; no polymorphic type resolution, no `BinaryFormatter`. |
 | **Untrusted repos** | `.gitignore` matching is ReDoS-safe — every pattern compiles with `RegexOptions.NonBacktracking`, which guarantees linear time in the input length. `.docx`/`.pdf` extraction is size-capped against decompression bombs, source files have their own byte cap, and directory walks are iterative and symlink-cycle-safe. A directory that cannot be read yields a **partial** result rather than failing the whole call. Nothing in a served repository is configuration: neither transport reads `appsettings.json`. |
 | **Auth** | Fails closed on unauthenticated non-loopback binds; since 4.0.0 also on a non-loopback bind with no `Host` allow-list, on an API key under 32 characters, and on half an OAuth configuration. API keys compared with a constant-time equality. |
-| **Secrets** | API keys / tokens are never written to logs; all logging is paths/errors/counts only. |
+| **Secrets** | API keys / tokens are never written to logs; all logging is paths/errors/counts only. Since 5.0.0, secret values in the files `read` and `find` return are masked as `[MASKED len=N]` by default and listed in the header by file, line and key, and the index masks them before storing anything. A caller over stdio can pass `secrets="reveal"`; over HTTP only the server-side `SANKSHEP_SECRETS=reveal` reveals them. |
 | **Isolation** | The image runs as a non-root user. A read-only root filesystem and dropping all Linux capabilities are **runtime** settings, not image ones: the Helm chart sets both, and the `docker run` recipe on the [deployment page](deployment.md) passes them. |
 
 ## Security review — who did it, and what that is worth
@@ -141,9 +144,9 @@ no signature. Check that the image you pulled was produced by that workflow for 
 
 ```bash
 cosign verify \
-  --certificate-identity "https://github.com/nitinpawar28/sankshep/.github/workflows/release.yml@refs/tags/v4.0.0" \
+  --certificate-identity "https://github.com/nitinpawar28/sankshep/.github/workflows/release.yml@refs/tags/v5.0.0" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  ghcr.io/nitinpawar28/sankshep:v4.0.0
+  ghcr.io/nitinpawar28/sankshep:v5.0.0
 ```
 
 The chart is signed the same way, but its package is not yet publicly pullable (see
@@ -154,7 +157,7 @@ compose, air-gap and cluster smoke results for the commit being tagged.
 
 ## Supported versions
 
-The latest released 4.x version receives security fixes. Please upgrade before reporting against an older
+The latest released 5.x version receives security fixes. Please upgrade before reporting against an older
 build.
 
 ## Reporting a vulnerability

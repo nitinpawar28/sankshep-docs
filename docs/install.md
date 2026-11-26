@@ -16,7 +16,7 @@ packaged fails cleanly at install rather than at runtime:
     **`sankshep.osx-x64` is not published from 3.0.0 onwards.** It existed up to 2.0.0 and should not
     have: **Microsoft.ML.OnnxRuntime ships no `osx-x64` native**, so the package installed, ran and
     answered `--version` — and then failed the first time anything needed an embedding. Over stdio
-    `index_repo` and `search_code` failed while the other six tools worked; over HTTP the server never
+    `index_repo` and `search_code` (now `index` and `find`) failed while the other six tools worked; over HTTP the server never
     became ready and answered 503 for the life of the process. It is the one platform where "fails
     cleanly at install" was never true, which is why withdrawing it is breaking rather than a cleanup.
 
@@ -42,7 +42,7 @@ includes both. Update with `dotnet tool update -g sankshep`.
 
     ```bash
     dnx sankshep serve --repo .          # latest
-    dnx sankshep@4.0.0 serve --repo .    # pinned version
+    dnx sankshep@5.0.0 serve --repo .    # pinned version
     ```
 
 ## Point your MCP client at it
@@ -104,7 +104,15 @@ client to launch `sankshep serve --repo <your-repo>`.
     ```
 
     In an interactive session, Claude Code asks you to approve a project-scoped server before using it.
-    Sankshep's tools and its `compose_task_prompt` slash-command then appear in the session.
+    Sankshep's tools and its prompts (`explore`, `architect`, `review`, `implement`) then appear in the
+    session as slash-commands.
+
+!!! tip "`sankshep init` writes the registration and four agents for you"
+    Run `sankshep init` from the repository root to write the `.mcp.json` registration together with an
+    Explorer, an Architect, an Implementer and a Reviewer for VS Code Copilot, Claude Code and Cursor. It
+    never overwrites a file you edited: it skips it and exits with code 3 (`--force` overwrites). Use
+    `--dry-run` to see what would change, `--hosts` to choose clients and `--no-mcp` to leave `.mcp.json`
+    alone. See [Agents](agents.md).
 
 === "Claude Desktop / Cursor"
 
@@ -164,6 +172,7 @@ allow-list. Defaults keep Sankshep local-only with no telemetry. See
 | `SANKSHEP_STATE_DIR` | Where per-repo state (`facts/index/stats.db`) is written | `<repo>/.sankshep` |
 | `SANKSHEP_MODEL_DIR` | Embedding-model cache location | per-user default |
 | `SANKSHEP_MODEL_OFFLINE` | `1` = never attempt the model download (air-gap; side-load first) | off |
+| `SANKSHEP_SECRETS` | `reveal` = return secret values from every `read` and `find` (the only way to see them over HTTP) | unset (masked as `[MASKED len=N]`) |
 | `SANKSHEP_WATCH` | `1` = watch the working tree and keep the index fresh automatically | off |
 | `SANKSHEP_DISABLE_VEC0` | `1` = disable the sqlite-vec native path (pure-C# vector fallback) | off |
 | `SANKSHEP_OTLP_ENDPOINT` | Enable OTLP metric export to this collector (opt-in) | unset (no export) |

@@ -88,7 +88,7 @@ What changes, in the order you will see it:
 
 `compose_task_prompt`'s code section inherits the declaration-level delivery but prints no header: the only
 sign that a file is incomplete is the line range on each excerpt. Captures of all of this are on the
-[tool reference](tool-reference.md#get_context).
+[tool reference](tool-reference.md#read) (`read` since 5.0.0).
 
 !!! info "Why it changed"
     A file larger than the remaining budget used to be withheld whole or truncated from the top, so one big

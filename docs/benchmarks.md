@@ -5,11 +5,11 @@ not marketed**. Two things are quantified: how many tokens are saved, and whethe
 
 ## Measured results
 
-!!! warning "Measured on 3.0.0 — not yet re-measured for 4.0.0"
+!!! warning "Measured on 3.0.0 — not yet re-measured for 4.0.0 or 5.0.0"
     Every figure on this page was measured on **2026-09-20 against the code released as 3.0.0**, with
-    `claude-opus-4-8` as the judge. **It is not a measurement of 4.0.0 and is not evidence about 4.0.0 in
-    either direction.** 4.0.0 changed both halves of what this page measures. First, what `get_context`
-    delivers when a call fills its budget: a file that does not fit now arrives as its relevant
+    `claude-opus-4-8` as the judge. **It is not a measurement of 4.0.0 or 5.0.0 and is not evidence about
+    either in either direction.** 4.0.0 changed both halves of what this page measures. First, what
+    `get_context` (now `read`) delivers when a call fills its budget: a file that does not fit now arrives as its relevant
     declarations instead of being truncated from the top or withheld whole, and the header now fits inside
     `tokenBudget`, so such a call carries up to 116 fewer tokens of code. Second, how compression is
     credited: a truncated
@@ -18,7 +18,9 @@ not marketed**. Two things are quantified: how many tokens are saved, and whethe
     compression column is not comparable with a 4.0.0 run. Which way the numbers move, and by how much, is
     not something to estimate in a table: this one is labelled, not adjusted, until it is re-measured
     against the 4.0.0 tag. The same label applies to *Composed vs. naive* below, because the composer wraps
-    the same engine.
+    the same engine. 5.0.0 changed the engine again: Balanced keeps the bodies the query is most about, at
+    most twelve per file, instead of every body that mentions a query word, and every line `read` returns now
+    carries its source line number. Neither change has been measured here.
 
     These figures replaced a table that was measured at **v1.7.0** (2026-07-18) and sat here labelled
     *v1.8.0* — wrong by a release — through two major versions. They are **not comparable to it**: that run
@@ -128,7 +130,7 @@ composer answers is what a budget costs.
 
 | Metric | How | Where |
 |---|---|---|
-| **Compression** | Delivered tokens vs. the original size of the source actually delivered — whole files, delivered declarations, or the source a truncated excerpt maps back to (4.0.0; the 3.0.0 figures above credited a truncated excerpt with its whole file) — using a real tokenizer. Context *searched* is reported separately and is never a baseline. | `token_report` (live, per tool) |
+| **Compression** | Delivered tokens vs. the original size of the source actually delivered — whole files, delivered declarations, or the source a truncated excerpt maps back to (4.0.0; the 3.0.0 figures above credited a truncated excerpt with its whole file) — using a real tokenizer. Context *searched* is reported separately and is never a baseline. | `report` (live, per tool) |
 | **Quality retention** | An **LLM-as-judge** scores key-point recall — does the delivered context let a reader recover each key fact? | eval harness |
 | **Composed vs. naive** | The [prompt composer](composer.md) vs. dumping the raw whole files: recall + tokens delivered | eval harness report |
 
@@ -178,7 +180,7 @@ judge.
 
 What you can regenerate yourself, and what you cannot:
 
-- **Live, per-tool:** `token_report` returns cumulative compression on your own repo. No dollar figure:
+- **Live, per-tool:** `report` (or `sankshep report --repo <path>` from a terminal) returns compression on your own repo, for this session or over `24h`, `7d` or `all`. No dollar figure:
   Sankshep does not know your model or your negotiated rate.
 - **The recall table:** the eval harness takes a YAML of `{ id, query, paths, token_budget, key_points }`
   (facts made **atomic** and verified against the cited code), drives the server over stdio, and emits a

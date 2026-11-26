@@ -10,77 +10,92 @@ mode, not **Ask**. Also check:
 
 - The MCP server config is loaded (VS Code: reload the window after editing `mcp.json`).
 - `sankshep --version` runs from the same environment the client launches it in.
-- The client's MCP/log panel shows the server started and `tools/list` returned 8 tools + 1 prompt.
+- The client's MCP/log panel shows the server started, `tools/list` returned 7 tools and `prompts/list`
+  returned 4 prompts.
+- **Upgraded from 4.x?** 5.0.0 renamed every tool and kept no aliases, so a client, prompt file or agent
+  that still calls `get_context`, `search_code` or another 4.x name gets an error. Use the new names — see
+  [Upgrading to 5.0.0](upgrading-5.0.md) — or run `sankshep init` to write current [agent files](agents.md).
 
 ## First run is slow, or fails to start offline
 
-The first `index_repo` / `search_code` downloads the embedding model (~127 MiB, once). If the machine is
+The first `index` / semantic `find` downloads the embedding model (~127 MiB, once). If the machine is
 air-gapped, that download fails. Side-load the model and set `SANKSHEP_MODEL_DIR` to its folder, and
 `SANKSHEP_MODEL_OFFLINE=1` to skip the download attempt entirely. Each model file is checksum-verified against
 the manifest: a corrupt or wrong side-loaded `model.onnx` / `vocab.txt` is treated as *missing or invalid* and,
 offline, fails closed — re-fetch the exact files the manifest names. See
 [Deployment → air-gap](deployment.md#air-gapped-zero-egress).
 
-## "Path not found" / "nothing matched" from `get_context` / `summarize_repo` / `index_repo`
+## "Path not found" / "nothing matched" from `read` / `outline` / `index`
 
-Relative paths resolve against the **served `--repo` root**, not your shell's working directory. `index_repo`
-and `summarize_repo` report a bad path as `path not found: <p> (resolved to <root>/<p>)`; `get_context` instead
+Relative paths resolve against the **served `--repo` root**, not your shell's working directory. `index`
+and `outline` report a bad path as `path not found: <p> (resolved to <root>/<p>)`; `read` instead
 writes `// WARNING: nothing matched: <p>` into its header, and when nothing at all matched returns
-`// NO CONTEXT was returned: ...` as an error. In each case the path is wrong relative to `--repo` — correct
+`// NO CONTEXT was returned: ...` as an error. Captured from 5.0.0:
+
+```text
+// ---- Sankshep read -------------------------------------------------
+// WARNING: nothing matched: Nope.cs
+// Relative `paths` resolve against the repo root given to `sankshep serve --repo`.
+// NO CONTEXT was returned: nothing readable matched `paths`.
+// Re-run with corrected `paths` or a larger `tokenBudget` -- do not answer from guesswork.
+// "N|" = source line N. "{ /* L12-40 elided */ }" = a body elided at those lines; read path:12-40 for it.
+// --------------------------------------------------------------------
+```
+ In each case the path is wrong relative to `--repo` — correct
 it. (In earlier versions these tools resolved against the server's own working directory and could silently
 target the wrong repo; they now anchor to `--repo` and fail loudly.)
 
 **Do not reach for an absolute path — in 2.0.0 it usually will not help.** A relative value that climbs out
 of `--repo` via `..` is refused on both transports, and an absolute path is accepted only by the **stdio**
 transport and only when it points **inside** the served root. The **HTTP** transport refuses every absolute
-path, and `index_repo` refuses one on both transports. To work with a tree outside the repository, serve a
+path, and `index` refuses one on both transports. To work with a tree outside the repository, serve a
 root that contains it.
 
-## `index_repo` says it indexed chunks, but `search_code` returns nothing {#index-built-but-search-empty}
+## `index` says it indexed chunks, but a semantic `find` returns nothing {#index-built-but-search-empty}
 
 **Before v2.0.0 this was not rare and re-indexing did not fix it.** Indexing a *subdirectory* keyed
 every chunk relative to that directory rather than to the served repo root, so nothing could resolve the
-keys afterwards — and `index_repo --force` rewrote exactly the same unusable keys. The only thing that
+keys afterwards — and a forced re-index rewrote exactly the same unusable keys. The only thing that
 worked was indexing from the repo root. That is fixed: keys are always relative to `--repo`, and an index
 written by an older build is pruned and rebuilt on first use.
 
-On v2.0.0 and later, if `index_repo` reports chunks and `search_code` returns nothing:
+On v2.0.0 and later, if `index` reports chunks and a semantic `find` returns nothing:
 
-- **Re-run `index_repo`.** Unless `SANKSHEP_WATCH=1` is set, only `index_repo` discovers new files —
+- **Re-run `index`.** Unless `SANKSHEP_WATCH=1` is set, only `index` discovers new files —
   verify-on-read refreshes files that are *already* indexed, so a file added since the last index is
   invisible to search until you run it again. This is the common cause. (With the watcher on, a new file
   is picked up once the burst of changes that created it settles.)
 - Confirm the path you indexed actually contains supported source — any language on the
   [Supported languages](usage.md#supported-languages) table, plus `.docx`/`.pdf` documents.
 - If the header carries `// NOTE: N indexed file(s) changed on disk and were not re-indexed before this
-  search …`, run `index_repo`. Since 4.0.0 a search re-embeds at most 25 changed files before answering, so
+  search …`, run `index`. Since 4.0.0 a search re-embeds at most 25 changed files before answering, so
   after a large change (a branch switch, say) some hits may be stale until you do.
 - Delete the repo's `.sankshep/index.db` (and its `-wal`/`-shm` siblings) and re-index. The index is
   derived data, so this is always safe; it is also what an older index does for itself on first use. Since
   4.0.0 an `index.db` that cannot be opened at all — a directory of that name, a read-only or locked file —
-  no longer stops the server: `index_repo` and `search_code` return an error naming the file and what to
+  no longer stops the server: `index` and semantic `find` return an error naming the file and what to
   check, and the other tools keep working.
 
-`get_context` and `summarize_repo` are unaffected — they read files directly and never depend on the index.
+`read` and `outline` are unaffected — they read files directly and never depend on the index — and so are
+`find`'s `exact`, `regex` and `symbol` modes, which scan the working tree.
 
-## `search_code` returns nothing on a fresh repo
+## A semantic `find` returns nothing on a fresh repo
 
-Expected until you run `index_repo` — and since 2.0.0 the tool **says so instead of returning an empty
+Expected until you run `index` — and since 2.0.0 the tool **says so instead of returning an empty
 success**. It is an error whose message states that the index is empty, that this is not evidence the code is
-absent, and which command to run:
+absent, and what to do instead. Captured from 5.0.0 (`C:\...\sample-repo` stands for the served root):
 
 ```text
-search_code: the index is empty - nothing has been indexed for this repo yet, or the index was purged.
-This is NOT evidence that the code does not exist. Run index_repo with path "." first ...
+find: the index is empty - nothing has been indexed for this repo yet, or the index was purged. This is NOT evidence that the code does not exist. Run index with path "." first (relative paths resolve against the served --repo root, C:\...\sample-repo), then retry - or use mode=exact, regex or symbol, which need no index. Only index discovers new files; verify-on-read and SANKSHEP_WATCH refresh already-indexed files only.
 ```
 
 The old `{count:0,results:[]}` was indistinguishable from a genuine no-match, which is how a model came to
 answer "that code does not exist" about code that did. No model download happens either way.
 
-## `token_report` shows a negative `compressionPct`
+## `report` shows negative compression
 
 Honest, not a bug: on very small inputs the per-file locator headers Sankshep adds can cost more tokens than
-minimization removes, so "compression" goes negative. On real files it is comfortably positive. There is no
+minimization removes, so "compression" (`compressionPct` under `format=json`) goes negative. On real files it is comfortably positive. There is no
 dollar figure by design — see [Benchmarks](benchmarks.md).
 
 ## HTTP mode: connection refused / port already in use
@@ -170,14 +185,11 @@ The `Origin` variant reads `Forbidden: Origin '…' is not allowed. Set SANKSHEP
 Health probes are exempt: `/health/live` and `/health/ready` answer whatever the headers say, so a 403 here
 never takes a pod down.
 
-## `search_code` or `remember` refuses an argument
+## `find` or `remember` refuses an argument
 
-New in 4.0.0, both as `isError` results. `topK` above 100 and an oversized fact are refused before anything
-is searched or stored; the [tool reference](tool-reference.md) has the captured texts:
-
-```text
-search_code: topK must be at most 100 (got 101). For more of the repository than that, call get_context with the paths these hits name, or summarize_repo. (Parameter 'topK')
-```
+Both as `isError` results, before anything is searched or stored. `find` refuses a `maxResults` above 100
+for `mode=semantic` or above 500 for the other modes (it was `topK`, at most 100, before 5.0.0), and points
+you at `read` with the paths the hits name, or `outline`, for more of the repository than that.
 
 `remember` refuses `text` over 4,000 characters, `category` over 64 and `source` over 2,048, naming the
 argument and the bound. Facts already stored are untouched.
@@ -185,5 +197,28 @@ argument and the bound. Facts already stored are untouched.
 ## Memory (`remember`/`recall`) seems empty across branches
 
 Facts are tagged with the current git branch; `recall` returns **current-branch + global** facts, not facts
-from other branches. On a non-git directory, everything is treated as global. `export_decisions` writes only
-`decision`-category facts.
+from other branches. On a non-git directory, everything is treated as global. `recall format=markdown`
+returns `decision`-category facts unless you pass another `category`, as `DECISIONS.md` text in its `markdown`
+field; nothing is written to your repository, so save that text yourself.
+
+## `read` shows `[MASKED len=N]` instead of a value
+
+Since 5.0.0 `read` and `find` mask secret values in configuration by default; the header lists each one by
+file, line and key, and the rest of a connection string is kept. Captured from 5.0.0:
+
+```text
+// SECRETS MASKED: appsettings.json L3 Default.Password - pass secrets="reveal" to see them
+```
+
+When troubleshooting needs the value, pass `secrets="reveal"` on the call over stdio. Over HTTP a per-call
+reveal is refused unless the server itself sets `SANKSHEP_SECRETS=reveal`, which reveals values on every
+`read` and `find` — see [Environment variables](environment.md).
+
+## `find` mode=exact or regex lists `.sankshep/` files as "could not be read, NOT searched"
+
+The state directory, `.sankshep/`, sits inside the repository by default, and the server holds its
+databases open while it runs, so a working-tree scan reaches those files and cannot read them. That is why
+they appear on the "could not be read" line; the rest of the tree was searched normally.
+
+The fix is the one [Security & privacy](security.md#where-state-lives-on-disk) already recommends: add
+`.sankshep/` to your `.gitignore`. It is local state, not source, and the scan then leaves it alone.

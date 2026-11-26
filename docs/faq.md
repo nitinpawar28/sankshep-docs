@@ -2,9 +2,9 @@
 
 Short answers to the first-run surprises — most are discoverable only by hitting them otherwise.
 
-## The first `index_repo` is slow, or downloads a lot
+## The first `index` is slow, or downloads a lot
 
-The first time you use embeddings (`index_repo`, or `search_code` against a non-empty index), Sankshep
+The first time you use embeddings (`index`, or a semantic `find` against a non-empty index), Sankshep
 downloads the local embedding model (~127 MiB, once, checksum-verified). It is fully offline afterwards. For
 air-gapped hosts, side-load the model and set `SANKSHEP_MODEL_OFFLINE=1` — see [Deployment](deployment.md#air-gapped-zero-egress).
 
@@ -17,25 +17,35 @@ chart sets it), every API key must be at least 32 characters, and OAuth needs bo
 neither — each refusal is one line on stderr, quoted on [Troubleshooting](troubleshooting.md). See also
 [Security → network exposure](security.md#network-exposure-http-mode).
 
-## I ran `index_repo`, but `search_code` returns nothing
+## I ran `index`, but a semantic `find` returns nothing
 
 Confirm you indexed the **same** repo the server serves, that your files are a
-[supported type](usage.md), then re-run `index_repo`. Deleting `<repo>/.sankshep/index.db` forces a clean
-rebuild. See [Troubleshooting](troubleshooting.md).
+[supported type](usage.md), then re-run `index`. Deleting `<repo>/.sankshep/index.db` forces a clean
+rebuild. `find` with `mode=exact`, `regex` or `symbol` needs no index at all, so it is the quickest way to
+check whether the code is there. See [Troubleshooting](troubleshooting.md).
 
-## `summarize_repo` returns almost nothing for my Go / TS / Python repo
+## My old tool names stopped working after upgrading
 
-Not since 2.0.0 — it covers **every language on the [languages table](usage.md)**, not just C#. If a summary
-still looks thin, check the second line of the response: it says `TRUNCATED: N of M files shown` when the
-`maxTokens` budget stopped the walk. Raise `maxTokens`, summarize a subdirectory, or use `search_code` to go
-straight to what you need.
+5.0.0 renamed every tool and keeps none of the old names as an alias: `get_context` is now `read`,
+`search_code` is `find`, `summarize_repo` is `outline`, `index_repo` is `index`, `token_report` is
+`report`, `export_decisions` is replaced by `recall` with `format=markdown`, and the `compose_task_prompt`
+prompt is `implement`. See [Upgrading to 5.0.0](upgrading-5.0.md).
+
+## `outline` returns almost nothing for my Go / TS / Python repo
+
+Not since 2.0.0 — it covers **every language on the [languages table](usage.md)**, not just C#. If an outline
+still looks thin, check the second line of the response: when the `maxTokens` ceiling (default 4,000, over
+the whole answer) cut the outline, it says so there. Raise `maxTokens`, outline a subdirectory, or use
+`find` to go straight to what you need.
 
 ## My HTML / SCSS / template files aren't in the results
 
-Sankshep minimizes and indexes the source languages on the [languages table](usage.md), plus `.docx`/`.pdf`
-documents. HTML, SCSS, and framework templates are not currently indexed or minimized.
+Sankshep minimizes and indexes the source languages on the [languages table](usage.md); the index also
+covers Markdown, manifests and `.docx`/`.pdf` documents, and `read` returns a Markdown, manifest or
+configuration file you name as written. HTML, SCSS, and framework templates are not currently indexed or
+minimized.
 
-## `get_context` returned nothing for a file outside my repo
+## `read` returned nothing for a file outside my repo
 
 That is deliberate, and in 2.0.0 the boundary is tighter than it was. Relative paths are confined to the
 served `--repo` root — a `../..` escape is refused, not read — and the refusal now says so instead of
@@ -48,7 +58,7 @@ An absolute path is **not** a general escape hatch:
 | stdio | accepted | refused |
 | HTTP | refused | refused |
 
-`index_repo` refuses an absolute path on **both** transports. If you need a file that lives outside the
+`find`'s `paths` follow the same rules. `index` refuses an absolute path on **both** transports. If you need a file that lives outside the
 repository, serve a root that contains it, or copy it in. See [Security](security.md).
 
 ## Which minimization level should I use?
