@@ -21,10 +21,12 @@ Upgrading from 4.x? Every tool was renamed in 5.0.0 and none of the old names is
 
 Paths are **relative to the repo the server was started against** (`serve --repo <root>`).
 
-!!! warning "Absolute paths are not a general escape hatch"
-    On **stdio**, an absolute path inside the served root is accepted; one outside it is refused. On the
-    **HTTP transport** an absolute path is refused outright, whether or not it points inside the root, and
-    `index` refuses one on **both** transports. Use repo-relative paths and they work everywhere. See
+!!! warning "Absolute paths depend on the transport"
+    A **relative** path must stay inside the served root on both transports; a `../..` escape is refused.
+    On **stdio**, an absolute path is honored as written, inside the root or not: the client is a local
+    process that can already read the filesystem. On the **HTTP transport** an absolute path is accepted only
+    when it points inside the root. `index` refuses any path outside the root on **both** transports,
+    because the index is keyed to the root. Use repo-relative paths and they work everywhere. See
     [Security](security.md).
 
 !!! tip "These fire in Agent mode, not Ask"
@@ -114,7 +116,8 @@ Finds code and text, every hit cited as `path:N`.
 Use `exact` and `regex` where you would use grep: they read the working tree, so an edit made a second ago is
 found, and every matching line is masked for secrets before it is returned. A regex runs on .NET's
 non-backtracking engine when it can, and otherwise under a per-match timeout. A search stopped by a cap (time,
-bytes read, `maxResults`, line length) says so in its header.
+bytes read, `maxResults`) says so in its header. A line longer than 300 characters is cut around the match,
+with `...` marking each cut.
 
 ```jsonc
 // request
@@ -293,7 +296,8 @@ An exact range:
 Values that look like secrets are **masked by default** in every text `read` and `find` return: values under
 secret-named keys in JSON, YAML, INI, `.env` and XML configuration, the credential parts of a connection string
 (the server and database stay visible), URI passwords, `Authorization` headers, private-key blocks, and
-well-known vendor token shapes. The header lists every masked value by file, line and key, so an over-mask or
+well-known vendor token shapes. The header lists the masked values by file, line and key (the first few files by
+name and then a count, `(+N more)`, and counts alone when the budget is tight), so an over-mask or
 a miss is visible.
 
 ```jsonc
@@ -373,7 +377,7 @@ lines, and the file is listed as **PARTIAL**.
 ## `index`
 
 Builds or refreshes the semantic index that `find mode=semantic` searches. Incremental: only new or changed
-chunks are re-embedded, so a re-run over an unchanged tree is cheap. The first run downloads the ~127 MB
+chunks are re-embedded, so a re-run over an unchanged tree is cheap. The first run downloads the ~127 MiB
 embedding model, pinned and checked by SHA-256 (see [Install](install.md) for offline use). Since 5.0.0 the
 index covers Markdown and manifests as well as code, stores masked text only, and never indexes `.env*` files,
 key and certificate files, or lockfiles.
@@ -419,7 +423,9 @@ Persists a fact to this repository's memory, tagged with the current git branch.
 ## `recall`
 
 Recalls facts for the current branch plus the branch-less ones. A fact matches when **every** word of the query
-appears in its text, in any order, ignoring case; an empty query returns every fact.
+appears in its text, in any order, ignoring case; an empty query matches every fact. At most 50 facts come back,
+newest first; `matched` counts all the matches and `truncated` says whether some were left out. (With
+`format=markdown`, the document holds every match.)
 
 | Argument | Default | |
 |---|---|---|
@@ -487,7 +493,8 @@ An unreadable `stats.db` is an error from `report`, the `sankshep://stats` resou
 never a row of zeros. Totals recorded by 4.x are kept and shown on their own line, not added in.
 
 The same report needs no MCP client: `sankshep report --repo . [--window session|24h|7d|all] [--json]` reads a
-copy of `stats.db`, so nothing in the state directory changes.
+copy of `stats.db`, so nothing in the state directory changes. It defaults to `--window all`, and its `session`
+is the most recent session recorded. `stats.db` keeps the newest 100,000 calls.
 
 ---
 

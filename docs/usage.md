@@ -12,7 +12,7 @@ mode**; in Claude clients they're available directly.
 | **`index`** | Builds/refreshes the semantic index over code, Markdown, manifests **and** `.docx` / `.pdf` documents. Secrets are masked before anything is stored. |
 | **`outline`** | An inventory of the projects, packages, scripts, container images and pipelines under a directory, each cited by line, then the tree-sitter-backed declarations in its source files, each with its line, in every language Sankshep parses. `maxTokens` (default 4,000) is a ceiling on the whole answer, and it says so when it cuts. |
 | **`remember` / `recall`** | A per-repo, branch-scoped fact store — decisions and conventions that persist across sessions and clients. Facts are at most 4,000 characters, categories at most 64 (4.0.0). `recall` with `format=markdown` returns the decisions as `DECISIONS.md` text, in a `markdown` field, for you to write where you want it; nothing is written to your repository. |
-| **`report`** | Every tool and prompt call, one row per call, with its outcome, time and the tokens it returned, for this session, the last 24 hours, the last 7 days or all time (`window`), as text or JSON (`format`). How far `read` compressed the code it delivered is reported on its own line, apart from that count. |
+| **`report`** | Every tool and prompt call, one row per call, with its outcome, time and the tokens it returned, for this session, the last 24 hours, the last 7 days or every call kept (`window`; the newest 100,000 are kept), as text or JSON (`format`). How far `read` compressed the code it delivered is reported on its own line, apart from that count. |
 
 ## Prompts
 
@@ -46,10 +46,10 @@ only what it verifies.
 **Body collapse** replaces a method/function body that isn't relevant to your query with a
 `{ /* L12-40 elided */ }` marker citing the source lines it stands for (5.0.0), so it applies only to
 brace-bodied languages; Python and Ruby get comment-stripping and packing but keep their bodies. Since 5.0.0
-a Markdown, manifest or configuration file you name in `read` comes back as written, numbered by line.
-Source files in **any other** language are **skipped**: `read` never picks them up from a directory, and a
-file you name explicitly is reported on the header's `WARNING: requested but NOT included` line, with the
-reason, instead of being returned. `index` also indexes Markdown, manifests and `.docx` and `.pdf`
+any other text file you name in `read`, whether Markdown, a manifest, configuration or source in a language
+not on this table, comes back as written, numbered by line. Such files are not minimized, and `read` never
+picks them up from a directory. A named file is reported on the header's `WARNING: requested but NOT
+included` line only when it cannot be returned, for example a binary file or one over the size cap. `index` also indexes Markdown, manifests and `.docx` and `.pdf`
 documents for semantic `find`.
 
 !!! note "Minimization levels"
@@ -86,8 +86,10 @@ everything local. See [How it works](how-it-works.md).
 `report` counts every tool and prompt call and the tokens each returned — what those calls added to the
 caller's context — and states **compression** on a line of its own: delivered tokens against the original
 size of the source that came back (whole files, or the declarations delivered from a file that did not
-fit), i.e. what minimization actually removed. `sankshep report --repo <path>` prints the same report from a
-terminal, with no MCP client, from a copy of `stats.db`, so nothing in the state directory changes.
+fit), i.e. what minimization actually removed. `sankshep report --repo <path>` prints the report from a
+terminal, with no MCP client, from a copy of `stats.db`, so nothing in the state directory changes. It defaults to
+`--window all`, where the tool defaults to `session`. `stats.db` keeps the newest 100,000 calls, so `all` means
+all that are kept.
 
 Context **searched** is deliberately **not** a baseline: Sankshep may read a whole
 repository to select a handful of files, and that is not context you would otherwise have sent. Counting it

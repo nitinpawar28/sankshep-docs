@@ -120,8 +120,9 @@ same sample repository:
 
 The compression line is delivered vs. the original size of the source that came back — a real, bounded
 number, no dollar estimate. Pass `window` (`session`, `24h`, `7d` or `all`) for a longer view and
-`format=json` for a program; `sankshep report --repo .` prints the same report from a terminal, with no MCP
-client. To measure savings **and** answer-quality together on a named repo, see [Benchmarks](benchmarks.md).
+`format=json` for a program; `sankshep report --repo .` prints the report from a terminal, with no MCP
+client. The terminal command defaults to `--window all`, and its `session` means the most recent session
+recorded. To measure savings **and** answer-quality together on a named repo, see [Benchmarks](benchmarks.md).
 
 ## Next
 
